@@ -5,6 +5,7 @@ export type BuilderServerConfig = {
   apiUrl: string;
   allowedOrigin: string;
   requestTimeoutMs: number;
+  forwardedApiCookies: string[];
   dataDir: string;
   adminEmail: string;
   adminPassword: string;
@@ -17,6 +18,11 @@ export function builderConfig(): BuilderServerConfig {
     apiUrl: (env.SPARK_API_URL ?? 'http://127.0.0.1:8787').replace(/\/$/, ''),
     allowedOrigin: env.SPARK_BUILDER_ALLOWED_ORIGIN ?? 'http://127.0.0.1:5175',
     requestTimeoutMs: Math.max(1_000, Math.min(30_000, Number(env.SPARK_API_TIMEOUT_MS) || 8_000)),
+    forwardedApiCookies: (env.SPARK_API_FORWARD_COOKIES ?? 'spark_api_session,__Host-spark_api_session')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 12),
     dataDir: env.SPARK_BUILDER_DATA_DIR ?? './data',
     adminEmail: (env.SPARK_BUILDER_ADMIN_EMAIL ?? 'admin@spark.local').toLowerCase(),
     adminPassword: env.SPARK_BUILDER_ADMIN_PASSWORD ?? 'change-this-password-now'

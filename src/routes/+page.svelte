@@ -38,7 +38,7 @@
   let sessionLoading = $state(true);
   let revisions = $state<Array<{ revision: number; createdAt: string; contentHash: string; createdBy: string }>>([]);
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
-  let mediaAssets = $state<Array<{ id: string; fileName: string; contentType: string; size: number; createdAt: string; url: string }>>([]);
+  let mediaAssets = $state<Array<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>>([]);
   let uploading = $state(false);
   let draggedIndex = $state<number | null>(null);
   let submissions = $state<Array<{ id: string; payload: Record<string, string>; createdAt: string }>>([]);
@@ -172,6 +172,30 @@
     if (!project) return;
     snapshot();
     commit({ ...project, name });
+  }
+
+  function updateProjectMetadata<K extends keyof NonNullable<BuilderProject['metadata']>>(key: K, value: NonNullable<BuilderProject['metadata']>[K]) {
+    if (!project || !project.metadata) return;
+    snapshot();
+    commit({ ...project, metadata: { ...project.metadata, [key]: value } });
+  }
+
+  function updateLearnMetadata<K extends keyof NonNullable<BuilderProject['metadata']>['learn']>(key: K, value: NonNullable<BuilderProject['metadata']>['learn'][K]) {
+    if (!project?.metadata) return;
+    snapshot();
+    commit({ ...project, metadata: { ...project.metadata, learn: { ...project.metadata.learn, [key]: value } } });
+  }
+
+  function updateLabMetadata<K extends keyof NonNullable<BuilderProject['metadata']>['lab']>(key: K, value: NonNullable<BuilderProject['metadata']>['lab'][K]) {
+    if (!project?.metadata) return;
+    snapshot();
+    commit({ ...project, metadata: { ...project.metadata, lab: { ...project.metadata.lab, [key]: value } } });
+  }
+
+  function updateHubMetadata<K extends keyof NonNullable<BuilderProject['metadata']>['hub']>(key: K, value: NonNullable<BuilderProject['metadata']>['hub'][K]) {
+    if (!project?.metadata) return;
+    snapshot();
+    commit({ ...project, metadata: { ...project.metadata, hub: { ...project.metadata.hub, [key]: value } } });
   }
 
   function exportProject() {
@@ -438,16 +462,16 @@
     catch (error) { showToast(error instanceof Error ? error.message : 'Media gagal dimuat.'); }
   }
 
-  async function uploadMedia(file: File, silent = false) {
+  async function uploadMedia(file: File, folder = '', silent = false) {
     uploading = true;
-    try { await gateway.upload(file); mediaAssets = await gateway.media(); if (!silent) showToast('Media berhasil diunggah'); }
+    try { await gateway.upload(file, folder); mediaAssets = await gateway.media(); if (!silent) showToast('Media berhasil diunggah'); }
     catch (error) { showToast(error instanceof Error ? error.message : 'Upload gagal.'); }
     finally { uploading = false; }
   }
 
-  async function uploadMediaWithOptimization(file: File) {
+  async function uploadMediaWithOptimization(file: File, folder = '') {
     const optimized = await optimizeImageForUpload(file);
-    await uploadMedia(optimized.file, optimized.optimized);
+    await uploadMedia(optimized.file, folder, optimized.optimized);
     if (optimized.optimized) {
       showToast(`Gambar dioptimalkan otomatis (${Math.ceil(optimized.originalSize / 1024)} KB → ${Math.ceil(optimized.optimizedSize / 1024)} KB)`);
     }
@@ -465,6 +489,36 @@
     updateBlocks([...page.blocks, block]);
     selectedBlockId = block.id;
     activePanel = null;
+  }
+
+  async function renameMedia(assetId: string, fileName: string) {
+    try {
+      await gateway.updateMedia(assetId, { fileName });
+      mediaAssets = await gateway.media();
+      showToast('Nama file diperbarui');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Nama file gagal diperbarui.');
+    }
+  }
+
+  async function moveMedia(assetId: string, folder: string) {
+    try {
+      await gateway.updateMedia(assetId, { folder });
+      mediaAssets = await gateway.media();
+      showToast(folder.trim() ? 'File dipindahkan ke folder baru' : 'File dipindahkan ke root');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Folder file gagal diperbarui.');
+    }
+  }
+
+  async function removeMedia(assetId: string) {
+    try {
+      await gateway.deleteMedia(assetId);
+      mediaAssets = await gateway.media();
+      showToast('File dihapus');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'File gagal dihapus.');
+    }
   }
 
   function saveReusable(block: BuilderBlock) {
@@ -572,7 +626,7 @@
     } catch (error) { showToast(error instanceof Error ? error.message : 'Export gagal.'); }
   }
 
-  function updateSite(key: 'headerTitle' | 'footerText', value: string) {
+  function updateSite(key: 'headerTitle' | 'footerText' | 'homePageId' | 'formAction', value: string) {
     if (!project) return;
     snapshot();
     commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [] }), [key]: value } });
@@ -652,7 +706,7 @@
           {:else if activePanel === 'layers'}
             <p>Kelola urutan dan pilih bagian halaman dengan cepat.</p><div class="layer-list">{#each page.blocks as block, index}<button class:selected={selectedBlockId === block.id} onclick={() => { selectedBlockId = block.id; activePanel = null; }}><span>{index + 1}</span><strong>{block.type}</strong><small>{block.data.title ?? block.data.quote ?? block.data.caption ?? 'Elemen halaman'}</small><i>{block.style.hiddenOn?.length ? `${block.style.hiddenOn.length} hidden` : ''}</i></button>{/each}</div>
           {:else if activePanel === 'media'}
-            <MediaLibrary assets={mediaAssets} {uploading} onupload={uploadMediaWithOptimization} onselect={insertMedia} />
+            <MediaLibrary assets={mediaAssets} {uploading} onupload={uploadMediaWithOptimization} onselect={insertMedia} onrename={renameMedia} onmove={moveMedia} ondelete={removeMedia} />
           {:else if activePanel === 'theme' && project.theme}
             <p>Token global menjaga warna dan tipografi tetap konsisten.</p><div class="settings-form"><div class="theme-colors"><label>Utama<input type="color" value={project.theme.primary} onchange={(event) => updateTheme('primary', event.currentTarget.value)} /></label><label>Aksen<input type="color" value={project.theme.accent} onchange={(event) => updateTheme('accent', event.currentTarget.value)} /></label><label>Permukaan<input type="color" value={project.theme.surface} onchange={(event) => updateTheme('surface', event.currentTarget.value)} /></label><label>Teks<input type="color" value={project.theme.text} onchange={(event) => updateTheme('text', event.currentTarget.value)} /></label></div><label>Gaya font<select value={project.theme.font} onchange={(event) => updateTheme('font', event.currentTarget.value)}><option value="modern">Modern</option><option value="friendly">Friendly</option><option value="editorial">Editorial</option></select></label><label>Sudut tombol<select value={project.theme.buttonRadius} onchange={(event) => updateTheme('buttonRadius', event.currentTarget.value)}><option value="pill">Pill</option><option value="soft">Soft</option><option value="square">Square</option></select></label></div>
           {:else if activePanel === 'revisions'}
@@ -665,10 +719,51 @@
               <label>Nama proyek<input value={project.name} onchange={(event) => updateProjectName(event.currentTarget.value)} /></label>
               <label>Judul header<input value={project.site?.headerTitle ?? project.name} onchange={(event) => updateSite('headerTitle', event.currentTarget.value)} /></label>
               <label>Teks footer<input value={project.site?.footerText ?? ''} onchange={(event) => updateSite('footerText', event.currentTarget.value)} /></label>
+              <label>Home page<select value={project.site?.homePageId ?? page.id} onchange={(event) => updateSite('homePageId', event.currentTarget.value)}>{#each project.pages as item}<option value={item.id}>{item.title}</option>{/each}</select></label>
+              <label>Form action publik<input value={project.site?.formAction ?? ''} placeholder="https://forms.example.com/submit" onchange={(event) => updateSite('formAction', event.currentTarget.value)} /><small>Kosongkan bila target runtime akan menyuntikkan endpoint form sendiri.</small></label>
               <label>Judul SEO<input value={page.seo.title} maxlength="60" onchange={(event) => updateSeo('title', event.currentTarget.value)} /><small>{page.seo.title.length}/60 karakter</small></label>
               <label>Deskripsi SEO<textarea rows="3" maxlength="160" value={page.seo.description} onchange={(event) => updateSeo('description', event.currentTarget.value)}></textarea><small>{page.seo.description.length}/160 karakter</small></label>
               <label>Social image HTTPS<input value={page.seo.image} onchange={(event) => updateSeo('image', event.currentTarget.value)} /></label>
               <label class="check-row"><input type="checkbox" checked={page.seo.noIndex} onchange={(event) => updateSeo('noIndex', event.currentTarget.checked)} />Sembunyikan dari mesin pencari</label>
+
+              <div class="settings-subsection">
+                <h3>Core / Learn / Lab / Hub</h3>
+                <small>Metadata ini ikut masuk ke render contract dan artifact export untuk consumer seperti Spark dan Hub.</small>
+              </div>
+              <label>Jenis proyek<select value={project.metadata?.kind ?? 'site'} onchange={(event) => updateProjectMetadata('kind', event.currentTarget.value as NonNullable<BuilderProject['metadata']>['kind'])}><option value="site">Site</option><option value="core">Core</option><option value="learn">Learn</option><option value="lab">Lab</option><option value="hub">Hub</option></select></label>
+              <label>Audience<input value={project.metadata?.audience ?? ''} onchange={(event) => updateProjectMetadata('audience', event.currentTarget.value)} /></label>
+              <label>Level<select value={project.metadata?.level ?? 'mixed'} onchange={(event) => updateProjectMetadata('level', event.currentTarget.value as NonNullable<BuilderProject['metadata']>['level'])}><option value="mixed">Mixed</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></label>
+              <label>Durasi (menit)<input type="number" min="0" max="1440" value={project.metadata?.durationMinutes ?? ''} onchange={(event) => updateProjectMetadata('durationMinutes', event.currentTarget.value ? Number(event.currentTarget.value) : null)} /></label>
+              <label>Ringkasan proyek<textarea rows="3" maxlength="400" value={project.metadata?.summary ?? ''} onchange={(event) => updateProjectMetadata('summary', event.currentTarget.value)}></textarea></label>
+              <label>Tags<input value={(project.metadata?.tags ?? []).join(', ')} placeholder="web3, mobile, onboarding" onchange={(event) => updateProjectMetadata('tags', event.currentTarget.value.split(',').map((item) => item.trim()).filter(Boolean).slice(0, 20))} /></label>
+              <label>Visibility target<select value={project.metadata?.visibilityTarget ?? 'spark'} onchange={(event) => updateProjectMetadata('visibilityTarget', event.currentTarget.value as NonNullable<BuilderProject['metadata']>['visibilityTarget'])}><option value="spark">Spark</option><option value="spark-hub">Spark Hub</option><option value="both">Both</option></select></label>
+
+              <div class="settings-subsection">
+                <h3>Learn metadata</h3>
+                <small>Gunakan untuk course, path, dan authoring lesson yang nanti dipisah ke CMS khusus.</small>
+              </div>
+              <label>Track learn<input value={project.metadata?.learn.track ?? ''} onchange={(event) => updateLearnMetadata('track', event.currentTarget.value)} /></label>
+              <label>Format learn<select value={project.metadata?.learn.format ?? 'path'} onchange={(event) => updateLearnMetadata('format', event.currentTarget.value as NonNullable<BuilderProject['metadata']>['learn']['format'])}><option value="lesson">Lesson</option><option value="path">Path</option><option value="cohort">Cohort</option></select></label>
+              <label>Learning outcomes<textarea rows="3" value={(project.metadata?.learn.outcomes ?? []).join('\n')} onchange={(event) => updateLearnMetadata('outcomes', event.currentTarget.value.split('\n').map((item) => item.trim()).filter(Boolean).slice(0, 20))}></textarea></label>
+              <label>Prerequisite learn<textarea rows="3" value={(project.metadata?.learn.prerequisites ?? []).join('\n')} onchange={(event) => updateLearnMetadata('prerequisites', event.currentTarget.value.split('\n').map((item) => item.trim()).filter(Boolean).slice(0, 20))}></textarea></label>
+
+              <div class="settings-subsection">
+                <h3>Lab metadata</h3>
+                <small>Fondasi untuk runtime profile, grader, dan orchestration environment.</small>
+              </div>
+              <label>Lab profile<input value={project.metadata?.lab.profile ?? ''} onchange={(event) => updateLabMetadata('profile', event.currentTarget.value)} /></label>
+              <label>Lab runtime<select value={project.metadata?.lab.runtime ?? 'browser'} onchange={(event) => updateLabMetadata('runtime', event.currentTarget.value as NonNullable<BuilderProject['metadata']>['lab']['runtime'])}><option value="browser">Browser</option><option value="container">Container</option><option value="external">External</option></select></label>
+              <label>Lab difficulty<select value={project.metadata?.lab.difficulty ?? 'guided'} onchange={(event) => updateLabMetadata('difficulty', event.currentTarget.value as NonNullable<BuilderProject['metadata']>['lab']['difficulty'])}><option value="guided">Guided</option><option value="standard">Standard</option><option value="challenge">Challenge</option></select></label>
+              <label>Estimasi lab (menit)<input type="number" min="0" max="1440" value={project.metadata?.lab.estimatedMinutes ?? ''} onchange={(event) => updateLabMetadata('estimatedMinutes', event.currentTarget.value ? Number(event.currentTarget.value) : null)} /></label>
+
+              <div class="settings-subsection">
+                <h3>Hub metadata</h3>
+                <small>Dipakai untuk listing card, katalog, dan filtering di Spark Hub.</small>
+              </div>
+              <label class="check-row"><input type="checkbox" checked={project.metadata?.hub.listed ?? false} onchange={(event) => updateHubMetadata('listed', event.currentTarget.checked)} />Tampilkan di Hub</label>
+              <label>Kategori Hub<input value={project.metadata?.hub.category ?? ''} onchange={(event) => updateHubMetadata('category', event.currentTarget.value)} /></label>
+              <label>Judul card Hub<input value={project.metadata?.hub.cardTitle ?? project.name} onchange={(event) => updateHubMetadata('cardTitle', event.currentTarget.value)} /></label>
+              <label>Ringkasan card Hub<textarea rows="3" maxlength="220" value={project.metadata?.hub.cardSummary ?? ''} onchange={(event) => updateHubMetadata('cardSummary', event.currentTarget.value)}></textarea></label>
 
               <div class="settings-subsection">
                 <h3>AI eksternal</h3>
@@ -723,7 +818,7 @@
             {#each page.blocks as block, index (block.id)}
               <div class:selected={selectedBlockId === block.id} class:hidden-device={block.style.hiddenOn?.includes(device)} class="editable-block" role="button" tabindex="0" draggable={!preview} ondragstart={() => draggedIndex = index} ondragover={(event) => event.preventDefault()} ondrop={() => dropBlock(index)} onclick={() => { if (!preview) selectedBlockId = block.id; }} onkeydown={(event) => { if (event.key === 'Enter' && !preview) selectedBlockId = block.id; }}>
                 {#if !preview}<div class="block-tools"><button onclick={(event) => { event.stopPropagation(); moveBlock(index, -1); }} disabled={index === 0} aria-label="Naik"><Icon name="up" size={16} /></button><button onclick={(event) => { event.stopPropagation(); moveBlock(index, 1); }} disabled={index === page.blocks.length - 1} aria-label="Turun"><Icon name="down" size={16} /></button><button onclick={(event) => { event.stopPropagation(); duplicateBlock(block.id); }} aria-label="Duplikasi"><Icon name="pages" size={15} /></button><span>{block.type}</span></div>{/if}
-                <BlockPreview {block} />
+                <BlockPreview {block} projectId={project.id} pageId={page.id} publicMode={preview} formAction={preview ? (project.site?.formAction || '/api/public/forms') : null} />
                 {#if !preview}<button class="between-add" onclick={(event) => { event.stopPropagation(); insertAt = index + 1; activePanel = 'blocks'; }} aria-label="Sisipkan blok setelah ini"><Icon name="plus" size={14} /></button>{/if}
               </div>
             {/each}

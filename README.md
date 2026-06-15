@@ -14,9 +14,11 @@ It is designed to work in two modes:
 - Insert, edit, duplicate, delete, drag reorder, touch reorder, undo, and redo
 - Pages, reusable sections, templates, layer navigator, and project dashboard
 - Global theme, header/footer, automatic navigation, SEO, responsive visibility, and device previews
-- Local media library for JPEG, PNG, WebP, AVIF, GIF, MP4, WebM, and validated Lottie JSON
+- Local media library and file manager for JPEG, PNG, WebP, AVIF, GIF, MP4, WebM, and validated Lottie JSON
 - Native video, privacy-enhanced YouTube/Vimeo embeds, Lottie, and reduced-motion-aware entrance animations
+- Folder-based asset organization, rename/move/delete actions, and copyable asset URLs inside the builder
 - Framework-agnostic render contract with export adapters for static HTML and Next.js
+- First-class metadata for `core`, `learn`, `lab`, and `hub`, including exportable hub manifest data
 - Local admin authentication, CSRF, strict origin validation, session hashing, login throttling, and password rotation endpoint
 - SQLite persistence with immutable revisions, optimistic locking, restore, publishing, and audit events
 - Backend autosave, conflict reporting, JSON backup, static ZIP export, and Next.js ZIP export
@@ -55,6 +57,7 @@ Important local settings:
 
 ```env
 SPARK_BUILDER_API_MODE=local
+SPARK_API_FORWARD_COOKIES=spark_api_session,__Host-spark_api_session
 SPARK_BUILDER_ALLOWED_ORIGIN=http://127.0.0.1:5175
 SPARK_BUILDER_ADMIN_PASSWORD=replace-with-at-least-16-random-characters
 ```
@@ -85,6 +88,13 @@ Current export targets:
 
 Both are generated from the same render contract. The editor does not hand-maintain separate block semantics per target.
 
+Each export now includes:
+
+- `site.contract.json`
+- `hub.manifest.json`
+
+`hub.manifest.json` is a consumer-friendly summary for `spark-hub` style catalog/listing runtimes.
+
 ## Integration Boundary
 
 The current Spark API admin endpoint is read-only and uses a bootstrap header token. The builder must **not** expose that token in browser code. Production publishing requires dedicated server-side CMS endpoints with authenticated admin identities, RBAC, CSRF/origin checks, rate limiting, audit logs, revision locking, and content schema validation.
@@ -96,6 +106,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/INTEGRATION.md](docs/INT
 - `SPARK_BUILDER_API_MODE=local`: standalone SQLite CMS, authentication, media, publishing, and forms.
 - `SPARK_BUILDER_API_MODE=draft`: browser-local editing and simulated preview publishing.
 - `SPARK_BUILDER_API_MODE=spark-api`: project save, publishing, session, and media requests use the same-origin Builder BFF and are forwarded to Spark API.
+
+In `spark-api` mode, the Builder forwards only cookies explicitly listed in `SPARK_API_FORWARD_COOKIES`. This avoids leaking builder-local cookies upstream.
 
 For Android LAN testing, set `SPARK_BUILDER_ALLOWED_ORIGIN` to the exact builder URL, for example `http://192.168.1.20:5175`.
 

@@ -31,8 +31,14 @@ export async function cmsRequest<T>(event: RequestEvent, path: string, init: Req
   headers.set('accept', 'application/json');
   headers.set('x-cms-contract-version', '2026-06-13');
   headers.set('x-request-id', event.locals.requestId);
-  const cookie = event.request.headers.get('cookie');
-  if (cookie) headers.set('cookie', cookie);
+  const forwardedCookies = config.forwardedApiCookies
+    .map((name) => {
+      const value = event.cookies.get(name);
+      return value ? `${name}=${value}` : '';
+    })
+    .filter(Boolean)
+    .join('; ');
+  if (forwardedCookies) headers.set('cookie', forwardedCookies);
 
   try {
     const response = await event.fetch(`${config.apiUrl}${path}`, { ...init, headers, signal: controller.signal });

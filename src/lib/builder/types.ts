@@ -1,6 +1,43 @@
 export type BlockType = 'hero' | 'text' | 'richtext' | 'feature' | 'cta' | 'image' | 'video' | 'lottie' | 'gallery' | 'stats' | 'quote' | 'form' | 'divider' | 'spacer';
 export type DeviceMode = 'mobile' | 'tablet' | 'desktop';
 export type BuilderExportTarget = 'static-html' | 'nextjs';
+export type BuilderProjectKind = 'site' | 'core' | 'learn' | 'lab' | 'hub';
+export type BuilderAudienceLevel = 'mixed' | 'beginner' | 'intermediate' | 'advanced';
+export type BuilderVisibilityTarget = 'spark' | 'spark-hub' | 'both';
+
+export type BuilderLearnMetadata = {
+  track: string;
+  format: 'lesson' | 'path' | 'cohort';
+  outcomes: string[];
+  prerequisites: string[];
+};
+
+export type BuilderLabMetadata = {
+  profile: string;
+  runtime: 'browser' | 'container' | 'external';
+  difficulty: 'guided' | 'standard' | 'challenge';
+  estimatedMinutes: number | null;
+};
+
+export type BuilderHubMetadata = {
+  listed: boolean;
+  category: string;
+  cardTitle: string;
+  cardSummary: string;
+};
+
+export type BuilderProjectMetadata = {
+  kind: BuilderProjectKind;
+  audience: string;
+  level: BuilderAudienceLevel;
+  durationMinutes: number | null;
+  summary: string;
+  tags: string[];
+  visibilityTarget: BuilderVisibilityTarget;
+  learn: BuilderLearnMetadata;
+  lab: BuilderLabMetadata;
+  hub: BuilderHubMetadata;
+};
 
 export type BuilderBlock = {
   id: string;
@@ -52,7 +89,10 @@ export type BuilderProject = {
     headerTitle: string;
     footerText: string;
     navigation: Array<{ id: string; label: string; pageId: string }>;
+    homePageId?: string;
+    formAction?: string;
   };
+  metadata?: BuilderProjectMetadata;
   reusableSections?: Array<{ id: string; name: string; blocks: BuilderBlock[] }>;
   pages: BuilderPage[];
 };

@@ -4,7 +4,7 @@
   import { safeImage, safeLink, safeMedia, safeVideoEmbed } from '$lib/builder/security';
   import LottiePlayer from './LottiePlayer.svelte';
 
-  let { block, projectId = '', pageId = '', publicMode = false }: { block: BuilderBlock; projectId?: string; pageId?: string; publicMode?: boolean } = $props();
+  let { block, projectId = '', pageId = '', publicMode = false, formAction = null }: { block: BuilderBlock; projectId?: string; pageId?: string; publicMode?: boolean; formAction?: string | null } = $props();
   let radius = $derived(block.style.radius === 'none' ? '0' : block.style.radius === 'medium' ? '18px' : '30px');
   let padding = $derived(block.style.padding === 'compact' ? '16px' : block.style.padding === 'roomy' ? '38px 24px' : '24px 20px');
   let richLines = $derived((block.data.content ?? '').split('\n').filter((line, index, lines) => line.trim() || (index > 0 && lines[index - 1].trim())));
@@ -61,7 +61,7 @@
     {:else if block.type === 'quote'}
       <blockquote>“{block.data.quote}”</blockquote><div class="quote-author"><strong>{block.data.author}</strong><span>{block.data.role}</span></div>
     {:else if block.type === 'form'}
-      <h2>{block.data.title}</h2><p>{block.data.body}</p><form class="site-form" method="POST" action="/api/public/forms"><input type="hidden" name="projectId" value={projectId} /><input type="hidden" name="pageId" value={pageId} /><input type="hidden" name="formId" value={block.id} /><input class="honeypot" name="website" tabindex="-1" autocomplete="off" />{#each formFields as field}<label><span>{field[0]}</span>{#if field[2] === 'textarea'}<textarea name={field[1]} required={field[3] === 'required'} disabled={!publicMode}></textarea>{:else}<input type={['text','email','tel','number'].includes(field[2]) ? field[2] : 'text'} name={field[1]} required={field[3] === 'required'} disabled={!publicMode} />{/if}</label>{/each}<button type="submit" disabled={!publicMode}>{block.data.button}</button></form>
+      <h2>{block.data.title}</h2><p>{block.data.body}</p>{#if formAction}<form class="site-form" method="POST" action={formAction}><input type="hidden" name="projectId" value={projectId} /><input type="hidden" name="pageId" value={pageId} /><input type="hidden" name="formId" value={block.id} /><input class="honeypot" name="website" tabindex="-1" autocomplete="off" />{#each formFields as field}<label><span>{field[0]}</span>{#if field[2] === 'textarea'}<textarea name={field[1]} required={field[3] === 'required'} disabled={!publicMode}></textarea>{:else}<input type={['text','email','tel','number'].includes(field[2]) ? field[2] : 'text'} name={field[1]} required={field[3] === 'required'} disabled={!publicMode} />{/if}</label>{/each}<button type="submit" disabled={!publicMode}>{block.data.button}</button></form>{:else}<div class="image-placeholder">Atur endpoint form publik di Setelan untuk mengaktifkan form ini.</div>{/if}
     {/if}
   </section>
 {/if}

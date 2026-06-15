@@ -8,12 +8,36 @@ function safeColor(value: unknown, fallback: string): string {
   return typeof value === 'string' && HEX_COLOR.test(value) ? value : fallback;
 }
 
+function safeString(value: unknown, fallback = '', limit = 200): string {
+  return typeof value === 'string' ? value.trim().slice(0, limit) : fallback;
+}
+
+function safeStringList(value: unknown, limit = 20, itemLimit = 80): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => safeString(item, '', itemLimit))
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
 export function normalizeProject(parsed: BuilderProject): BuilderProject | null {
   if (!parsed || typeof parsed !== 'object' || parsed.schemaVersion !== 1 || !Array.isArray(parsed.pages) || parsed.pages.length === 0 || parsed.pages.length > 100) return null;
   if (parsed.pages.some((page) => !page || typeof page !== 'object' || !Array.isArray(page.blocks) || page.blocks.length > 500)) return null;
   if (parsed.pages.some((page) => page.blocks.some((block) => !block || !BLOCK_TYPES.has(block.type) || !block.data || typeof block.data !== 'object' || Array.isArray(block.data) || !block.style || typeof block.style !== 'object'))) return null;
   parsed.theme ??= { primary: '#17211b', accent: '#d9ff62', surface: '#ffffff', text: '#17211b', font: 'modern', buttonRadius: 'pill' };
-  parsed.site ??= { headerTitle: parsed.name, footerText: 'Belajar aman. Tumbuh bersama.', navigation: [] };
+  parsed.site ??= { headerTitle: parsed.name, footerText: 'Belajar aman. Tumbuh bersama.', navigation: [], formAction: '' };
+  parsed.metadata ??= {
+    kind: 'site',
+    audience: 'Pembelajar Indonesia',
+    level: 'mixed',
+    durationMinutes: null,
+    summary: '',
+    tags: [],
+    visibilityTarget: 'spark',
+    learn: { track: '', format: 'path', outcomes: [], prerequisites: [] },
+    lab: { profile: '', runtime: 'browser', difficulty: 'guided', estimatedMinutes: null },
+    hub: { listed: false, category: '', cardTitle: parsed.name, cardSummary: '' }
+  };
   parsed.reusableSections ??= [];
   parsed.theme.primary = safeColor(parsed.theme.primary, '#17211b');
   parsed.theme.accent = safeColor(parsed.theme.accent, '#d9ff62');
@@ -21,6 +45,32 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
   parsed.theme.text = safeColor(parsed.theme.text, '#17211b');
   if (!['modern', 'friendly', 'editorial'].includes(parsed.theme.font)) parsed.theme.font = 'modern';
   if (!['soft', 'pill', 'square'].includes(parsed.theme.buttonRadius)) parsed.theme.buttonRadius = 'pill';
+  parsed.site.headerTitle = safeString(parsed.site.headerTitle, parsed.name, 80) || parsed.name;
+  parsed.site.footerText = safeString(parsed.site.footerText, 'Belajar aman. Tumbuh bersama.', 140);
+  parsed.site.formAction = typeof parsed.site.formAction === 'string' ? parsed.site.formAction.trim().slice(0, 240) : '';
+  parsed.site.homePageId = typeof parsed.site.homePageId === 'string' ? parsed.site.homePageId : undefined;
+  parsed.metadata.kind = ['site', 'core', 'learn', 'lab', 'hub'].includes(parsed.metadata.kind) ? parsed.metadata.kind : 'site';
+  parsed.metadata.audience = safeString(parsed.metadata.audience, 'Pembelajar Indonesia', 120);
+  parsed.metadata.level = ['mixed', 'beginner', 'intermediate', 'advanced'].includes(parsed.metadata.level) ? parsed.metadata.level : 'mixed';
+  parsed.metadata.durationMinutes = parsed.metadata.durationMinutes === null ? null : Math.max(0, Math.min(24 * 60, Number(parsed.metadata.durationMinutes) || 0));
+  parsed.metadata.summary = safeString(parsed.metadata.summary, '', 400);
+  parsed.metadata.tags = safeStringList(parsed.metadata.tags);
+  parsed.metadata.visibilityTarget = ['spark', 'spark-hub', 'both'].includes(parsed.metadata.visibilityTarget) ? parsed.metadata.visibilityTarget : 'spark';
+  parsed.metadata.learn ??= { track: '', format: 'path', outcomes: [], prerequisites: [] };
+  parsed.metadata.learn.track = safeString(parsed.metadata.learn.track, '', 80);
+  parsed.metadata.learn.format = ['lesson', 'path', 'cohort'].includes(parsed.metadata.learn.format) ? parsed.metadata.learn.format : 'path';
+  parsed.metadata.learn.outcomes = safeStringList(parsed.metadata.learn.outcomes, 20, 140);
+  parsed.metadata.learn.prerequisites = safeStringList(parsed.metadata.learn.prerequisites, 20, 140);
+  parsed.metadata.lab ??= { profile: '', runtime: 'browser', difficulty: 'guided', estimatedMinutes: null };
+  parsed.metadata.lab.profile = safeString(parsed.metadata.lab.profile, '', 80);
+  parsed.metadata.lab.runtime = ['browser', 'container', 'external'].includes(parsed.metadata.lab.runtime) ? parsed.metadata.lab.runtime : 'browser';
+  parsed.metadata.lab.difficulty = ['guided', 'standard', 'challenge'].includes(parsed.metadata.lab.difficulty) ? parsed.metadata.lab.difficulty : 'guided';
+  parsed.metadata.lab.estimatedMinutes = parsed.metadata.lab.estimatedMinutes === null ? null : Math.max(0, Math.min(24 * 60, Number(parsed.metadata.lab.estimatedMinutes) || 0));
+  parsed.metadata.hub ??= { listed: false, category: '', cardTitle: parsed.name, cardSummary: '' };
+  parsed.metadata.hub.listed = parsed.metadata.hub.listed === true;
+  parsed.metadata.hub.category = safeString(parsed.metadata.hub.category, '', 80);
+  parsed.metadata.hub.cardTitle = safeString(parsed.metadata.hub.cardTitle, parsed.name, 80) || parsed.name;
+  parsed.metadata.hub.cardSummary = safeString(parsed.metadata.hub.cardSummary, '', 220);
   parsed.pages = parsed.pages.map((page) => ({
     ...page,
     seo: page.seo ?? { title: page.title, description: '', image: '', noIndex: false },
@@ -43,6 +93,7 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
       }
     }))
   }));
+  if (!parsed.pages.some((page) => page.id === parsed.site?.homePageId)) parsed.site.homePageId = parsed.pages[0]?.id;
   return parsed;
 }
 

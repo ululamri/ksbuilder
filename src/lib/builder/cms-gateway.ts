@@ -65,17 +65,40 @@ export class BuilderCmsGateway {
     }));
   }
 
-  async media(): Promise<Array<{ id: string; fileName: string; contentType: string; size: number; createdAt: string; url: string }>> {
+  async media(): Promise<Array<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>> {
     return envelope(await fetch('/api/builder/media', { credentials: 'same-origin' }));
   }
 
-  async upload(file: File) {
+  async upload(file: File, folder = '') {
     const csrfToken = this.csrfToken ?? (await this.session()).csrfToken;
     const form = new FormData();
     form.set('file', file);
-    return envelope<{ id: string; fileName: string; contentType: string; size: number; createdAt: string; url: string }>(await fetch('/api/builder/media', {
+    if (folder.trim()) form.set('folder', folder.trim());
+    return envelope<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>(await fetch('/api/builder/media', {
       method: 'POST', credentials: 'same-origin', headers: { 'x-csrf-token': csrfToken }, body: form
     }));
+  }
+
+  async updateMedia(assetId: string, input: { fileName?: string; folder?: string | null }) {
+    const csrfToken = this.csrfToken ?? (await this.session()).csrfToken;
+    return envelope<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>(await fetch(`/api/builder/media/${encodeURIComponent(assetId)}`, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json', 'x-csrf-token': csrfToken },
+      body: JSON.stringify(input)
+    }));
+  }
+
+  async deleteMedia(assetId: string): Promise<void> {
+    const csrfToken = this.csrfToken ?? (await this.session()).csrfToken;
+    const response = await fetch(`/api/builder/media/${encodeURIComponent(assetId)}`, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'x-csrf-token': csrfToken }
+    });
+    if (response.status === 204) return;
+    const body = await response.json() as CmsErrorEnvelope;
+    throw new BuilderGatewayError(body.error.code, body.error.message);
   }
 
   async submissions(): Promise<Array<{ id: string; projectId: string; pageId: string; formId: string; payload: Record<string, string>; createdAt: string }>> {

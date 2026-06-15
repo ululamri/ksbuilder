@@ -14,6 +14,9 @@ describe('project normalization', () => {
     expect(result?.theme?.primary).toBe('#17211b');
     expect(result?.pages[0].seo?.title).toBe('Page');
     expect(result?.pages[0].blocks[0].style.padding).toBe('normal');
+    expect(result?.site?.homePageId).toBe('page');
+    expect(result?.metadata?.kind).toBe('site');
+    expect(result?.metadata?.hub.cardTitle).toBe('Project');
   });
 
   it('replaces CSS injection colors', () => {

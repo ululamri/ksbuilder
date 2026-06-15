@@ -1,10 +1,13 @@
 import type { BuilderBlock, BuilderPage, BuilderProject } from '$lib/builder/types';
 import { getPublishedProject } from './local-cms';
+import { resolveHomePageId } from '$lib/renderer/contract';
 
 export function publicSite(projectId: string, path = ''): { project: BuilderProject; page: BuilderPage } {
   const project = getPublishedProject(projectId);
   const slug = path.replace(/^\/+|\/+$/g, '');
-  const page = slug ? project.pages.find((item) => item.slug === slug) : project.pages[0];
+  const publishedPages = project.pages.filter((item) => item.status === 'published');
+  const homePageId = resolveHomePageId(project, publishedPages);
+  const page = slug ? publishedPages.find((item) => item.slug === slug) : publishedPages.find((item) => item.id === homePageId) ?? publishedPages[0];
   if (!page || page.status !== 'published') throw new Error('not_found');
   return { project: rewriteMedia(project), page: rewriteMediaPage(page) };
 }

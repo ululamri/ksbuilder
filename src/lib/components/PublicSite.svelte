@@ -8,8 +8,8 @@
 
 <svelte:head><title>{page.seo?.title ?? page.title}</title><meta name="description" content={page.seo?.description ?? ''} />{#if page.seo?.noIndex}<meta name="robots" content="noindex,nofollow" />{/if}</svelte:head>
 <div class="public-site" style={`--theme-primary:${project.theme?.primary};--theme-accent:${project.theme?.accent};--theme-surface:${project.theme?.surface};--theme-text:${project.theme?.text};--button-radius:${project.theme?.buttonRadius === 'square' ? '4px' : project.theme?.buttonRadius === 'soft' ? '14px' : '999px'}`}>
-  <header><a href={`/site/${project.id}`}><span>S</span><strong>{project.site?.headerTitle ?? project.name}</strong></a><nav>{#each navigationLinks as item}<a href={`/site/${project.id}/${item.page?.slug}`}>{item.label}</a>{/each}</nav></header>
-  <main>{#each page.blocks as block}<BlockPreview {block} projectId={project.id} pageId={page.id} publicMode={true} />{/each}</main>
+  <header><a href={`/site/${project.id}`}><span>S</span><strong>{project.site?.headerTitle ?? project.name}</strong></a><nav>{#each navigationLinks as item}<a href={item.page?.id === (project.site?.homePageId ?? project.pages[0]?.id) ? `/site/${project.id}` : `/site/${project.id}/${item.page?.slug}`}>{item.label}</a>{/each}</nav></header>
+  <main>{#each page.blocks as block}<BlockPreview {block} projectId={project.id} pageId={page.id} publicMode={true} formAction="/api/public/forms" />{/each}</main>
   <footer><strong>{project.name}</strong><span>{project.site?.footerText}</span></footer>
 </div>
 

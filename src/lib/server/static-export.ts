@@ -34,7 +34,8 @@ export function createStaticZip(project: BuilderProject): Uint8Array {
   files['robots.txt'] = strToU8('User-agent: *\nAllow: /\nSitemap: /sitemap.xml\n');
   files['sitemap.xml'] = strToU8(`<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${contract.pages.filter((page) => !page.seo.noIndex).map((page) => `<url><loc>/${page.route ? `${escape(page.route)}/` : ''}</loc><lastmod>${escape(page.updatedAt)}</lastmod></url>`).join('')}</urlset>`);
   files['site.contract.json'] = strToU8(JSON.stringify(contract, null, 2));
-  files['README.txt'] = strToU8('Spark Builder static export. Upload all files while preserving directory structure. Forms require the Spark Builder server endpoint configured in their action URL.');
+  files['hub.manifest.json'] = strToU8(JSON.stringify(createHubManifest(contract), null, 2));
+  files['README.txt'] = strToU8('Spark Builder static export. Upload all files while preserving directory structure. Forms stay disabled until a public form action is configured in Builder settings or injected by the target runtime.');
   return zipSync(files, { level: 6 });
 }
 
@@ -91,5 +92,22 @@ function renderStaticBlock(block: RenderBlock): string {
   if (block.type === 'gallery') return wrap(`<div class="gallery">${block.images.map((src) => src ? `<img src="${escape(src)}" alt="${escape(block.alt)}">` : '<div class="image-placeholder">HTTPS</div>').join('')}</div>`);
   if (block.type === 'stats') return wrap(`<div class="stats">${block.items.map((item) => `<div><strong>${escape(item.value)}</strong><span>${escape(item.label)}</span></div>`).join('')}</div>`);
   if (block.type === 'quote') return wrap(`<blockquote>&ldquo;${escape(block.quote)}&rdquo;</blockquote><div class="quote-author"><strong>${escape(block.author)}</strong><span>${escape(block.role)}</span></div>`);
-  return wrap(`<h2>${escape(block.title)}</h2><p>${escape(block.body)}</p><form class="site-form" method="POST" action="${escape(block.action)}"><input type="hidden" name="projectId" value="${escape(block.projectId)}"><input type="hidden" name="pageId" value="${escape(block.pageId)}"><input type="hidden" name="formId" value="${escape(block.formId)}"><input class="honeypot" name="website" tabindex="-1" autocomplete="off">${block.fields.map((field) => `<label><span>${escape(field.label)}</span>${field.type === 'textarea' ? `<textarea name="${escape(field.name)}" ${field.required ? 'required' : ''}></textarea>` : `<input type="${escape(field.type)}" name="${escape(field.name)}" ${field.required ? 'required' : ''}>`}</label>`).join('')}<button type="submit">${escape(block.button)}</button></form>`);
+  return wrap(`<h2>${escape(block.title)}</h2><p>${escape(block.body)}</p>${block.action ? `<form class="site-form" method="POST" action="${escape(block.action)}"><input type="hidden" name="projectId" value="${escape(block.projectId)}"><input type="hidden" name="pageId" value="${escape(block.pageId)}"><input type="hidden" name="formId" value="${escape(block.formId)}"><input class="honeypot" name="website" tabindex="-1" autocomplete="off">${block.fields.map((field) => `<label><span>${escape(field.label)}</span>${field.type === 'textarea' ? `<textarea name="${escape(field.name)}" ${field.required ? 'required' : ''}></textarea>` : `<input type="${escape(field.type)}" name="${escape(field.name)}" ${field.required ? 'required' : ''}>`}</label>`).join('')}<button type="submit">${escape(block.button)}</button></form>` : '<div class="image-placeholder">Configure a public form action to enable this form.</div>'}`);
+}
+
+function createHubManifest(contract: SiteRenderContract) {
+  return {
+    version: contract.version,
+    projectId: contract.project.id,
+    name: contract.project.name,
+    visibilityTarget: contract.project.metadata.visibilityTarget,
+    listed: contract.project.metadata.hub.listed,
+    category: contract.project.metadata.hub.category,
+    title: contract.project.metadata.hub.cardTitle,
+    summary: contract.project.metadata.hub.cardSummary || contract.project.metadata.summary,
+    tags: contract.project.metadata.tags,
+    level: contract.project.metadata.level,
+    durationMinutes: contract.project.metadata.durationMinutes,
+    routes: contract.pages.map((page) => ({ id: page.id, route: page.route, title: page.title, isHome: page.isHome }))
+  };
 }

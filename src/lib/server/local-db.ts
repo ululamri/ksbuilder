@@ -69,8 +69,10 @@ function migrate(db: DatabaseSync) {
       file_name text not null,
       content_type text not null,
       size integer not null,
+      folder text not null default '',
       storage_name text not null unique,
-      created_at text not null
+      created_at text not null,
+      updated_at text not null default ''
     );
     create table if not exists local_form_submissions (
       id text primary key,
@@ -93,6 +95,12 @@ function migrate(db: DatabaseSync) {
     create index if not exists local_audit_project on local_audit_events(project_id, created_at desc);
     create index if not exists local_media_owner on local_media(owner_id, created_at desc);
   `);
+  const mediaColumns = new Set((db.prepare('pragma table_info(local_media)').all() as Array<{ name: string }>).map((column) => column.name));
+  if (!mediaColumns.has('folder')) db.exec(`alter table local_media add column folder text not null default '';`);
+  if (!mediaColumns.has('updated_at')) {
+    db.exec(`alter table local_media add column updated_at text not null default '';`);
+    db.exec(`update local_media set updated_at = created_at where updated_at = '';`);
+  }
 }
 
 function seedAdmin(db: DatabaseSync, email: string, password: string) {
