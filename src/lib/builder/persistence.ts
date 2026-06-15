@@ -1,7 +1,7 @@
 import type { BuilderProject } from './types';
 
 const STORAGE_KEY = 'spark-builder:project:v1';
-const BLOCK_TYPES = new Set(['hero', 'text', 'richtext', 'feature', 'cta', 'image', 'video', 'lottie', 'gallery', 'stats', 'quote', 'form', 'divider', 'spacer']);
+const BLOCK_TYPES = new Set(['hero', 'text', 'richtext', 'feature', 'cta', 'image', 'video', 'lottie', 'gallery', 'stats', 'quote', 'form', 'divider', 'spacer', 'symbol', 'grid']);
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 function safeColor(value: unknown, fallback: string): string {
@@ -25,7 +25,7 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
   if (parsed.pages.some((page) => !page || typeof page !== 'object' || !Array.isArray(page.blocks) || page.blocks.length > 500)) return null;
   if (parsed.pages.some((page) => page.blocks.some((block) => !block || !BLOCK_TYPES.has(block.type) || !block.data || typeof block.data !== 'object' || Array.isArray(block.data) || !block.style || typeof block.style !== 'object'))) return null;
   parsed.theme ??= { primary: '#17211b', accent: '#d9ff62', surface: '#ffffff', text: '#17211b', font: 'modern', buttonRadius: 'pill' };
-  parsed.site ??= { headerTitle: parsed.name, footerText: 'Belajar aman. Tumbuh bersama.', navigation: [], formAction: '' };
+  parsed.site ??= { headerTitle: parsed.name, footerText: 'Belajar aman. Tumbuh bersama.', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [], formAction: '' };
   parsed.metadata ??= {
     kind: 'site',
     audience: 'Pembelajar Indonesia',
@@ -38,6 +38,7 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
     lab: { profile: '', runtime: 'browser', difficulty: 'guided', estimatedMinutes: null },
     hub: { listed: false, category: '', cardTitle: parsed.name, cardSummary: '' }
   };
+  parsed.componentLibrary ??= [];
   parsed.reusableSections ??= [];
   parsed.theme.primary = safeColor(parsed.theme.primary, '#17211b');
   parsed.theme.accent = safeColor(parsed.theme.accent, '#d9ff62');
@@ -47,6 +48,18 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
   if (!['soft', 'pill', 'square'].includes(parsed.theme.buttonRadius)) parsed.theme.buttonRadius = 'pill';
   parsed.site.headerTitle = safeString(parsed.site.headerTitle, parsed.name, 80) || parsed.name;
   parsed.site.footerText = safeString(parsed.site.footerText, 'Belajar aman. Tumbuh bersama.', 140);
+  parsed.site.headerCtaLabel = safeString(parsed.site.headerCtaLabel, 'Mulai', 40);
+  parsed.site.headerCtaHref = typeof parsed.site.headerCtaHref === 'string' ? parsed.site.headerCtaHref.trim().slice(0, 240) : '/core';
+  parsed.site.footerLinks = Array.isArray(parsed.site.footerLinks)
+    ? parsed.site.footerLinks
+      .filter((item) => item && typeof item === 'object')
+      .slice(0, 12)
+      .map((item) => ({
+        id: typeof item.id === 'string' && item.id ? item.id : crypto.randomUUID(),
+        label: safeString(item.label, 'Link', 50) || 'Link',
+        href: typeof item.href === 'string' ? item.href.trim().slice(0, 240) : '/'
+      }))
+    : [];
   parsed.site.formAction = typeof parsed.site.formAction === 'string' ? parsed.site.formAction.trim().slice(0, 240) : '';
   parsed.site.homePageId = typeof parsed.site.homePageId === 'string' ? parsed.site.homePageId : undefined;
   parsed.metadata.kind = ['site', 'core', 'learn', 'lab', 'hub'].includes(parsed.metadata.kind) ? parsed.metadata.kind : 'site';
@@ -93,6 +106,51 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
       }
     }))
   }));
+  const migratedReusable = parsed.reusableSections.map((section) => ({
+    id: section.id,
+    name: safeString(section.name, 'Reusable section', 80) || 'Reusable section',
+    category: 'Section' as const,
+    description: '',
+    updatedAt: new Date().toISOString(),
+    blocks: section.blocks.map((block) => ({
+      ...block,
+      id: crypto.randomUUID(),
+      data: Object.fromEntries(Object.entries(block.data).map(([key, value]) => [key.slice(0, 40), String(value).slice(0, 10_000)]))
+    }))
+  }));
+  if (!parsed.componentLibrary.length && migratedReusable.length) parsed.componentLibrary = migratedReusable;
+  parsed.componentLibrary = parsed.componentLibrary
+    .filter((entry) => entry && typeof entry === 'object' && Array.isArray(entry.blocks))
+    .slice(0, 150)
+    .map((entry) => ({
+      id: typeof entry.id === 'string' ? entry.id : crypto.randomUUID(),
+      name: safeString(entry.name, 'Component', 80) || 'Component',
+      category: ['Section', 'Hero', 'Content', 'Conversion', 'Media', 'Custom'].includes(entry.category) ? entry.category : 'Custom',
+      description: safeString(entry.description, '', 180),
+      updatedAt: typeof entry.updatedAt === 'string' && entry.updatedAt ? entry.updatedAt : new Date().toISOString(),
+      blocks: entry.blocks
+        .filter((block) => block && BLOCK_TYPES.has(block.type))
+        .slice(0, 50)
+        .map((block) => ({
+          ...block,
+          id: typeof block.id === 'string' ? block.id : crypto.randomUUID(),
+          data: Object.fromEntries(Object.entries(block.data ?? {}).map(([key, value]) => [key.slice(0, 40), String(value).slice(0, 10_000)])),
+          style: {
+            ...block.style,
+            background: safeColor(block.style?.background, '#ffffff'),
+            foreground: safeColor(block.style?.foreground, '#17211b'),
+            align: block.style?.align === 'center' ? 'center' : 'left',
+            radius: ['none', 'medium', 'large'].includes(block.style?.radius) ? block.style.radius : 'large',
+            padding: (['compact', 'normal', 'roomy'].includes(block.style?.padding ?? '') ? block.style.padding : 'normal') as 'compact' | 'normal' | 'roomy',
+            shadow: block.style?.shadow === true,
+            hiddenOn: (block.style?.hiddenOn ?? []).filter((item) => ['mobile', 'tablet', 'desktop'].includes(item)),
+            animation: ['none', 'fade', 'slide-up', 'slide-left', 'zoom'].includes(block.style?.animation ?? '') ? block.style.animation : 'none',
+            animationDuration: ['fast', 'normal', 'slow'].includes(block.style?.animationDuration ?? '') ? block.style.animationDuration : 'normal',
+            animationDelay: Math.max(0, Math.min(2000, Number(block.style?.animationDelay) || 0)),
+            animationOnce: block.style?.animationOnce !== false
+          }
+        }))
+    }));
   if (!parsed.pages.some((page) => page.id === parsed.site?.homePageId)) parsed.site.homePageId = parsed.pages[0]?.id;
   return parsed;
 }

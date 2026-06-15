@@ -70,6 +70,11 @@ function migrate(db: DatabaseSync) {
       content_type text not null,
       size integer not null,
       folder text not null default '',
+      asset_group_id text not null default '',
+      variant_role text not null default 'original',
+      width integer not null default 0,
+      focal_x real not null default 50,
+      focal_y real not null default 50,
       storage_name text not null unique,
       created_at text not null,
       updated_at text not null default ''
@@ -101,6 +106,16 @@ function migrate(db: DatabaseSync) {
     db.exec(`alter table local_media add column updated_at text not null default '';`);
     db.exec(`update local_media set updated_at = created_at where updated_at = '';`);
   }
+  if (!mediaColumns.has('asset_group_id')) {
+    db.exec(`alter table local_media add column asset_group_id text not null default '';`);
+    db.exec(`update local_media set asset_group_id = id where asset_group_id = '';`);
+  }
+  if (!mediaColumns.has('variant_role')) db.exec(`alter table local_media add column variant_role text not null default 'original';`);
+  if (!mediaColumns.has('width')) db.exec(`alter table local_media add column width integer not null default 0;`);
+  if (!mediaColumns.has('focal_x')) db.exec(`alter table local_media add column focal_x real not null default 50;`);
+  if (!mediaColumns.has('focal_y')) db.exec(`alter table local_media add column focal_y real not null default 50;`);
+  db.exec(`update local_media set asset_group_id = id where asset_group_id = '';`);
+  db.exec(`create index if not exists local_media_group on local_media(owner_id, asset_group_id, variant_role, width);`);
 }
 
 function seedAdmin(db: DatabaseSync, email: string, password: string) {

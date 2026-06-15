@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { blockCatalog, createBlock } from '$lib/builder/catalog';
-  import { BuilderCmsGateway, BuilderGatewayError } from '$lib/builder/cms-gateway';
+  import { BuilderCmsGateway, BuilderGatewayError, type BuilderMediaAsset } from '$lib/builder/cms-gateway';
   import { analyzeDesign } from '$lib/builder/design-assistant';
   import { instantiateModule, moduleCatalog } from '$lib/builder/modules';
-  import { optimizeImageForUpload } from '$lib/builder/image-optimizer';
+  import { prepareImageUploadPlan } from '$lib/builder/image-optimizer';
   import { loadProject, normalizeProject, saveProject } from '$lib/builder/persistence';
   import { SparkApiPublishAdapter } from '$lib/builder/publish-adapter';
   import { duplicatePage, starterProject } from '$lib/builder/project';
@@ -38,7 +38,7 @@
   let sessionLoading = $state(true);
   let revisions = $state<Array<{ revision: number; createdAt: string; contentHash: string; createdBy: string }>>([]);
   let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
-  let mediaAssets = $state<Array<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>>([]);
+  let mediaAssets = $state<BuilderMediaAsset[]>([]);
   let uploading = $state(false);
   let draggedIndex = $state<number | null>(null);
   let submissions = $state<Array<{ id: string; payload: Record<string, string>; createdAt: string }>>([]);
@@ -462,33 +462,79 @@
     catch (error) { showToast(error instanceof Error ? error.message : 'Media gagal dimuat.'); }
   }
 
-  async function uploadMedia(file: File, folder = '', silent = false) {
-    uploading = true;
-    try { await gateway.upload(file, folder); mediaAssets = await gateway.media(); if (!silent) showToast('Media berhasil diunggah'); }
-    catch (error) { showToast(error instanceof Error ? error.message : 'Upload gagal.'); }
-    finally { uploading = false; }
-  }
-
-  async function uploadMediaWithOptimization(file: File, folder = '') {
-    const optimized = await optimizeImageForUpload(file);
-    await uploadMedia(optimized.file, folder, optimized.optimized);
-    if (optimized.optimized) {
-      showToast(`Gambar dioptimalkan otomatis (${Math.ceil(optimized.originalSize / 1024)} KB → ${Math.ceil(optimized.optimizedSize / 1024)} KB)`);
+  async function uploadMedia(
+    file: File,
+    folder = '',
+    input: { parentAssetId?: string; variantRole?: string; variantWidth?: number; focalX?: number; focalY?: number } = {},
+    silent = false
+  ) {
+    try {
+      const asset = await gateway.upload(file, folder, input);
+      mediaAssets = await gateway.media();
+      if (!silent) showToast('Media berhasil diunggah');
+      return asset;
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Upload gagal.');
+      return null;
     }
   }
 
-  function insertMedia(asset: { url: string; fileName: string; contentType: string }) {
+  async function uploadMediaWithOptimization(file: File, folder = '') {
+    const prepared = await prepareImageUploadPlan(file);
+    const master = await uploadMedia(prepared.file, folder, {}, prepared.optimized);
+    if (!master) return;
+    for (const variant of prepared.variants) {
+      await uploadMedia(variant.file, folder, {
+        parentAssetId: master.id,
+        variantRole: variant.role,
+        variantWidth: variant.width
+      }, true);
+    }
+    mediaAssets = await gateway.media();
+    if (prepared.optimized) {
+      showToast(`Gambar dioptimalkan otomatis (${Math.ceil(prepared.originalSize / 1024)} KB → ${Math.ceil(prepared.optimizedSize / 1024)} KB)`);
+      return;
+    }
+    if (prepared.variants.length) showToast(`Media berhasil diunggah dengan ${prepared.variants.length} varian responsif.`);
+  }
+
+  async function uploadMediaBatch(files: File[], folder = '') {
+    if (!files.length) return;
+    uploading = true;
+    try {
+      for (const file of files) await uploadMediaWithOptimization(file, folder);
+    } finally {
+      uploading = false;
+    }
+  }
+
+  function insertMedia(asset: BuilderMediaAsset) {
     if (!page) return;
     const type = asset.contentType.startsWith('video/') ? 'video' : asset.contentType === 'application/json' ? 'lottie' : 'image';
     const block = createBlock(type);
     block.data = type === 'image'
-      ? { ...block.data, src: asset.url, alt: asset.fileName, caption: '' }
+      ? {
+        ...block.data,
+        src: asset.url,
+        srcset: asset.variants.length ? asset.variants.map((variant) => `${variant.url} ${variant.width}w`).join(', ') : '',
+        sizes: '100vw',
+        focalX: String(asset.focalX),
+        focalY: String(asset.focalY),
+        alt: asset.fileName,
+        caption: ''
+      }
       : type === 'video'
         ? { ...block.data, src: asset.url, title: asset.fileName, caption: '' }
         : { ...block.data, src: asset.url, title: asset.fileName };
     updateBlocks([...page.blocks, block]);
     selectedBlockId = block.id;
     activePanel = null;
+  }
+
+  function createSymbolBlock(componentId: string): BuilderBlock {
+    const symbol = createBlock('symbol');
+    symbol.data.componentId = componentId;
+    return symbol;
   }
 
   async function renameMedia(assetId: string, fileName: string) {
@@ -521,21 +567,93 @@
     }
   }
 
-  function saveReusable(block: BuilderBlock) {
-    if (!project) return;
-    const name = block.data.title || block.data.quote || `${block.type} section`;
-    snapshot();
-    commit({ ...project, reusableSections: [...(project.reusableSections ?? []), { id: crypto.randomUUID(), name: name.slice(0, 80), blocks: [{ ...structuredClone(block), id: crypto.randomUUID() }] }] });
-    selectedBlockId = null;
-    showToast('Disimpan sebagai reusable section');
+  async function updateMediaFocus(assetId: string, focalX: number, focalY: number) {
+    try {
+      await gateway.updateMedia(assetId, { focalX, focalY });
+      mediaAssets = await gateway.media();
+      showToast('Focal point diperbarui');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Focal point gagal diperbarui.');
+    }
   }
 
-  function insertReusable(sectionId: string) {
+  function saveReusable(block: BuilderBlock) {
+    if (!project || block.type === 'symbol') return;
+    const name = block.data.title || block.data.quote || `${block.type} component`;
+    snapshot();
+    const nextComponent = {
+      id: crypto.randomUUID(),
+      name: name.slice(0, 80),
+      category: block.type === 'hero' ? 'Hero' : block.type === 'image' || block.type === 'video' || block.type === 'gallery' || block.type === 'lottie' ? 'Media' : block.type === 'cta' || block.type === 'form' ? 'Conversion' : 'Content',
+      description: `Komponen global dari blok ${block.type}.`,
+      updatedAt: new Date().toISOString(),
+      blocks: [{ ...structuredClone(block), id: crypto.randomUUID() }]
+    } satisfies NonNullable<BuilderProject['componentLibrary']>[number];
+    commit({ ...project, componentLibrary: [...(project.componentLibrary ?? []), nextComponent] });
+    selectedBlockId = null;
+    showToast('Blok disimpan ke library komponen');
+  }
+
+  function insertComponent(componentId: string) {
     if (!project || !page) return;
-    const section = project.reusableSections?.find((item) => item.id === sectionId);
-    if (!section) return;
-    updateBlocks([...page.blocks, ...section.blocks.map((block) => ({ ...structuredClone(block), id: crypto.randomUUID() }))]);
+    const component = project.componentLibrary?.find((item) => item.id === componentId);
+    if (!component) return;
+    updateBlocks([...page.blocks, createSymbolBlock(componentId)]);
     activePanel = null;
+    showToast(`Komponen "${component.name}" ditambahkan`);
+  }
+
+  function savePageAsComponent() {
+    if (!project || !page || page.blocks.length === 0) return;
+    snapshot();
+    const nextComponent = {
+      id: crypto.randomUUID(),
+      name: page.title.slice(0, 80) || 'Section',
+      category: 'Section',
+      description: `Section global dari halaman ${page.title}.`,
+      updatedAt: new Date().toISOString(),
+      blocks: page.blocks
+        .filter((block) => block.type !== 'symbol')
+        .map((block) => ({ ...structuredClone(block), id: crypto.randomUUID() }))
+    } satisfies NonNullable<BuilderProject['componentLibrary']>[number];
+    if (!nextComponent.blocks.length) {
+      showToast('Section hanya bisa dibuat dari blok biasa, bukan reference symbol.');
+      return;
+    }
+    commit({ ...project, componentLibrary: [...(project.componentLibrary ?? []), nextComponent] });
+    showToast('Halaman aktif disimpan sebagai section global');
+  }
+
+  function overwriteComponentFromPage(componentId: string) {
+    if (!project || !page) return;
+    const component = project.componentLibrary?.find((item) => item.id === componentId);
+    if (!component) return;
+    const sourceBlocks = page.blocks.filter((block) => block.type !== 'symbol').map((block) => ({ ...structuredClone(block), id: crypto.randomUUID() }));
+    if (!sourceBlocks.length) {
+      showToast('Section sumber kosong atau hanya berisi symbol.');
+      return;
+    }
+    snapshot();
+    commit({
+      ...project,
+      componentLibrary: (project.componentLibrary ?? []).map((item) => item.id === componentId ? {
+        ...item,
+        blocks: sourceBlocks,
+        updatedAt: new Date().toISOString()
+      } : item)
+    });
+    showToast(`Source komponen "${component.name}" diperbarui dari halaman aktif`);
+  }
+
+  function deleteComponent(componentId: string) {
+    if (!project) return;
+    if (project.pages.some((candidate) => candidate.blocks.some((block) => block.type === 'symbol' && block.data.componentId === componentId))) {
+      showToast('Komponen masih dipakai oleh halaman. Lepas symbol dulu sebelum menghapus.');
+      return;
+    }
+    snapshot();
+    commit({ ...project, componentLibrary: (project.componentLibrary ?? []).filter((item) => item.id !== componentId) });
+    showToast('Komponen dihapus dari library');
   }
 
   function dropBlock(targetIndex: number) {
@@ -629,7 +747,61 @@
   function updateSite(key: 'headerTitle' | 'footerText' | 'homePageId' | 'formAction', value: string) {
     if (!project) return;
     snapshot();
-    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [] }), [key]: value } });
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), [key]: value } });
+  }
+
+  function updateSiteLink(key: 'headerCtaLabel' | 'headerCtaHref', value: string) {
+    if (!project) return;
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), [key]: value } });
+  }
+
+  function addNavigationItem() {
+    if (!project || !page) return;
+    const item = { id: crypto.randomUUID(), label: page.title, pageId: page.id };
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), navigation: [...(project.site?.navigation ?? []), item] } });
+  }
+
+  function updateNavigationItem(id: string, key: 'label' | 'pageId', value: string) {
+    if (!project) return;
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), navigation: (project.site?.navigation ?? []).map((item) => item.id === id ? { ...item, [key]: value } : item) } });
+  }
+
+  function moveNavigationItem(id: string, direction: -1 | 1) {
+    if (!project?.site?.navigation?.length) return;
+    const items = [...project.site.navigation];
+    const index = items.findIndex((item) => item.id === id);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    [items[index], items[target]] = [items[target], items[index]];
+    snapshot();
+    commit({ ...project, site: { ...project.site, navigation: items } });
+  }
+
+  function removeNavigationItem(id: string) {
+    if (!project) return;
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), navigation: (project.site?.navigation ?? []).filter((item) => item.id !== id) } });
+  }
+
+  function addFooterLink() {
+    if (!project) return;
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), footerLinks: [...(project.site?.footerLinks ?? []), { id: crypto.randomUUID(), label: 'Link baru', href: '/' }] } });
+  }
+
+  function updateFooterLink(id: string, key: 'label' | 'href', value: string) {
+    if (!project) return;
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), footerLinks: (project.site?.footerLinks ?? []).map((item) => item.id === id ? { ...item, [key]: value } : item) } });
+  }
+
+  function removeFooterLink(id: string) {
+    if (!project) return;
+    snapshot();
+    commit({ ...project, site: { ...(project.site ?? { headerTitle: project.name, footerText: '', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [] }), footerLinks: (project.site?.footerLinks ?? []).filter((item) => item.id !== id) } });
   }
 
   async function restoreRevision(revision: number) {
@@ -700,13 +872,29 @@
               />
             {/if}
           {:else if activePanel === 'templates'}
-            <p>Template mengganti isi halaman aktif. Reusable section ditambahkan ke halaman.</p><div class="template-list">{#each templates as template}<button onclick={() => applyTemplate(template.id)} style={`--template-color:${template.color}`}><i></i><strong>{template.name}</strong><small>{template.description}</small><span>Gunakan template</span></button>{/each}</div>{#if project.reusableSections?.length}<h3 class="panel-subtitle">Reusable sections</h3><div class="block-library">{#each project.reusableSections as section}<button onclick={() => insertReusable(section.id)}><span>R</span><div><strong>{section.name}</strong><small>{section.blocks.length} blok</small></div><Icon name="plus" size={17} /></button>{/each}</div>{/if}
+            <p>Template mengganti isi halaman aktif. Library komponen menyimpan source global yang bisa dipakai ulang lewat symbol block.</p>
+            <div class="template-list">{#each templates as template}<button onclick={() => applyTemplate(template.id)} style={`--template-color:${template.color}`}><i></i><strong>{template.name}</strong><small>{template.description}</small><span>Gunakan template</span></button>{/each}</div>
+            <div class="page-actions"><button onclick={savePageAsComponent}><Icon name="plus" /> Simpan halaman aktif ke library</button></div>
+            {#if project.componentLibrary?.length}
+              <h3 class="panel-subtitle">Global component library</h3>
+              <div class="block-library">
+                {#each project.componentLibrary as component}
+                  <article class="component-card">
+                    <button onclick={() => insertComponent(component.id)}><span>SYM</span><div><strong>{component.name}</strong><small>{component.category} · {component.blocks.length} blok · {new Date(component.updatedAt).toLocaleDateString('id-ID')}</small></div><Icon name="plus" size={17} /></button>
+                    <div class="component-card-actions">
+                      <button class="secondary-action" onclick={() => overwriteComponentFromPage(component.id)}>Update dari halaman aktif</button>
+                      <button class="danger-action" onclick={() => deleteComponent(component.id)}>Hapus</button>
+                    </div>
+                  </article>
+                {/each}
+              </div>
+            {/if}
           {:else if activePanel === 'pages'}
             <div class="page-list">{#each project.pages as item}<button class:active={item.id === page.id} onclick={() => { activePageId = item.id; activePanel = null; }}><span>{item.title.slice(0, 1)}</span><div><strong>{item.title}</strong><small>/{item.slug}</small></div></button>{/each}</div><div class="page-actions"><button onclick={addPage}><Icon name="plus" /> Baru</button><button onclick={copyActivePage}><Icon name="pages" /> Duplikasi</button><button class="danger-action" onclick={deleteActivePage} disabled={project.pages.length === 1}><Icon name="trash" /> Hapus</button></div>
           {:else if activePanel === 'layers'}
-            <p>Kelola urutan dan pilih bagian halaman dengan cepat.</p><div class="layer-list">{#each page.blocks as block, index}<button class:selected={selectedBlockId === block.id} onclick={() => { selectedBlockId = block.id; activePanel = null; }}><span>{index + 1}</span><strong>{block.type}</strong><small>{block.data.title ?? block.data.quote ?? block.data.caption ?? 'Elemen halaman'}</small><i>{block.style.hiddenOn?.length ? `${block.style.hiddenOn.length} hidden` : ''}</i></button>{/each}</div>
+            <p>Kelola urutan dan pilih bagian halaman dengan cepat.</p><div class="layer-list">{#each page.blocks as block, index}<button class:selected={selectedBlockId === block.id} onclick={() => { selectedBlockId = block.id; activePanel = null; }}><span>{index + 1}</span><strong>{block.type === 'symbol' ? (project.componentLibrary?.find((item) => item.id === block.data.componentId)?.name ?? 'symbol') : block.type}</strong><small>{block.type === 'symbol' ? 'Reference komponen global' : block.data.title ?? block.data.quote ?? block.data.caption ?? 'Elemen halaman'}</small><i>{block.style.hiddenOn?.length ? `${block.style.hiddenOn.length} hidden` : ''}</i></button>{/each}</div>
           {:else if activePanel === 'media'}
-            <MediaLibrary assets={mediaAssets} {uploading} onupload={uploadMediaWithOptimization} onselect={insertMedia} onrename={renameMedia} onmove={moveMedia} ondelete={removeMedia} />
+            <MediaLibrary assets={mediaAssets} {uploading} onupload={uploadMediaBatch} onselect={insertMedia} onrename={renameMedia} onmove={moveMedia} ondelete={removeMedia} onfocus={updateMediaFocus} />
           {:else if activePanel === 'theme' && project.theme}
             <p>Token global menjaga warna dan tipografi tetap konsisten.</p><div class="settings-form"><div class="theme-colors"><label>Utama<input type="color" value={project.theme.primary} onchange={(event) => updateTheme('primary', event.currentTarget.value)} /></label><label>Aksen<input type="color" value={project.theme.accent} onchange={(event) => updateTheme('accent', event.currentTarget.value)} /></label><label>Permukaan<input type="color" value={project.theme.surface} onchange={(event) => updateTheme('surface', event.currentTarget.value)} /></label><label>Teks<input type="color" value={project.theme.text} onchange={(event) => updateTheme('text', event.currentTarget.value)} /></label></div><label>Gaya font<select value={project.theme.font} onchange={(event) => updateTheme('font', event.currentTarget.value)}><option value="modern">Modern</option><option value="friendly">Friendly</option><option value="editorial">Editorial</option></select></label><label>Sudut tombol<select value={project.theme.buttonRadius} onchange={(event) => updateTheme('buttonRadius', event.currentTarget.value)}><option value="pill">Pill</option><option value="soft">Soft</option><option value="square">Square</option></select></label></div>
           {:else if activePanel === 'revisions'}
@@ -719,8 +907,41 @@
               <label>Nama proyek<input value={project.name} onchange={(event) => updateProjectName(event.currentTarget.value)} /></label>
               <label>Judul header<input value={project.site?.headerTitle ?? project.name} onchange={(event) => updateSite('headerTitle', event.currentTarget.value)} /></label>
               <label>Teks footer<input value={project.site?.footerText ?? ''} onchange={(event) => updateSite('footerText', event.currentTarget.value)} /></label>
+              <label>Teks CTA header<input value={project.site?.headerCtaLabel ?? ''} onchange={(event) => updateSiteLink('headerCtaLabel', event.currentTarget.value)} /></label>
+              <label>Tautan CTA header<input value={project.site?.headerCtaHref ?? ''} onchange={(event) => updateSiteLink('headerCtaHref', event.currentTarget.value)} /></label>
               <label>Home page<select value={project.site?.homePageId ?? page.id} onchange={(event) => updateSite('homePageId', event.currentTarget.value)}>{#each project.pages as item}<option value={item.id}>{item.title}</option>{/each}</select></label>
               <label>Form action publik<input value={project.site?.formAction ?? ''} placeholder="https://forms.example.com/submit" onchange={(event) => updateSite('formAction', event.currentTarget.value)} /><small>Kosongkan bila target runtime akan menyuntikkan endpoint form sendiri.</small></label>
+              <div class="settings-subsection">
+                <h3>Navbar builder</h3>
+                <small>Kontrol label, urutan, dan halaman tujuan untuk navigasi header.</small>
+              </div>
+              <div class="nav-editor">
+                {#each project.site?.navigation ?? [] as item, index}
+                  <div class="nav-editor-row">
+                    <input value={item.label} onchange={(event) => updateNavigationItem(item.id, 'label', event.currentTarget.value)} />
+                    <select value={item.pageId} onchange={(event) => updateNavigationItem(item.id, 'pageId', event.currentTarget.value)}>{#each project.pages as candidate}<option value={candidate.id}>{candidate.title}</option>{/each}</select>
+                    <button class="icon-action" onclick={() => moveNavigationItem(item.id, -1)} disabled={index === 0} aria-label="Naik"><Icon name="up" size={16} /></button>
+                    <button class="icon-action" onclick={() => moveNavigationItem(item.id, 1)} disabled={index === (project.site?.navigation?.length ?? 1) - 1} aria-label="Turun"><Icon name="down" size={16} /></button>
+                    <button class="danger-action" onclick={() => removeNavigationItem(item.id)}>Hapus</button>
+                  </div>
+                {/each}
+                <button class="secondary-action" onclick={addNavigationItem}>Tambah item navigasi</button>
+              </div>
+
+              <div class="settings-subsection">
+                <h3>Footer builder</h3>
+                <small>Kelola kumpulan tautan footer tanpa harus membuat blok terpisah.</small>
+              </div>
+              <div class="nav-editor">
+                {#each project.site?.footerLinks ?? [] as link}
+                  <div class="nav-editor-row">
+                    <input value={link.label} onchange={(event) => updateFooterLink(link.id, 'label', event.currentTarget.value)} />
+                    <input value={link.href} onchange={(event) => updateFooterLink(link.id, 'href', event.currentTarget.value)} />
+                    <button class="danger-action" onclick={() => removeFooterLink(link.id)}>Hapus</button>
+                  </div>
+                {/each}
+                <button class="secondary-action" onclick={addFooterLink}>Tambah link footer</button>
+              </div>
               <label>Judul SEO<input value={page.seo.title} maxlength="60" onchange={(event) => updateSeo('title', event.currentTarget.value)} /><small>{page.seo.title.length}/60 karakter</small></label>
               <label>Deskripsi SEO<textarea rows="3" maxlength="160" value={page.seo.description} onchange={(event) => updateSeo('description', event.currentTarget.value)}></textarea><small>{page.seo.description.length}/160 karakter</small></label>
               <label>Social image HTTPS<input value={page.seo.image} onchange={(event) => updateSeo('image', event.currentTarget.value)} /></label>
@@ -818,7 +1039,7 @@
             {#each page.blocks as block, index (block.id)}
               <div class:selected={selectedBlockId === block.id} class:hidden-device={block.style.hiddenOn?.includes(device)} class="editable-block" role="button" tabindex="0" draggable={!preview} ondragstart={() => draggedIndex = index} ondragover={(event) => event.preventDefault()} ondrop={() => dropBlock(index)} onclick={() => { if (!preview) selectedBlockId = block.id; }} onkeydown={(event) => { if (event.key === 'Enter' && !preview) selectedBlockId = block.id; }}>
                 {#if !preview}<div class="block-tools"><button onclick={(event) => { event.stopPropagation(); moveBlock(index, -1); }} disabled={index === 0} aria-label="Naik"><Icon name="up" size={16} /></button><button onclick={(event) => { event.stopPropagation(); moveBlock(index, 1); }} disabled={index === page.blocks.length - 1} aria-label="Turun"><Icon name="down" size={16} /></button><button onclick={(event) => { event.stopPropagation(); duplicateBlock(block.id); }} aria-label="Duplikasi"><Icon name="pages" size={15} /></button><span>{block.type}</span></div>{/if}
-                <BlockPreview {block} projectId={project.id} pageId={page.id} publicMode={preview} formAction={preview ? (project.site?.formAction || '/api/public/forms') : null} />
+                <BlockPreview {block} {project} projectId={project.id} pageId={page.id} publicMode={preview} formAction={preview ? (project.site?.formAction || '/api/public/forms') : null} />
                 {#if !preview}<button class="between-add" onclick={(event) => { event.stopPropagation(); insertAt = index + 1; activePanel = 'blocks'; }} aria-label="Sisipkan blok setelah ini"><Icon name="plus" size={14} /></button>{/if}
               </div>
             {/each}

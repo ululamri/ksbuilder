@@ -5,6 +5,7 @@ const valid = {
   schemaVersion: 1 as const,
   id: 'project',
   name: 'Project',
+  reusableSections: [{ id: 'section-1', name: 'Reusable lama', blocks: [{ id: 'block-r', type: 'text' as const, data: { title: 'Reusable', body: 'Lama' }, style: { background: '#ffffff', foreground: '#17211b', align: 'left' as const, radius: 'large' as const } }] }],
   pages: [{ id: 'page', title: 'Page', slug: 'page', status: 'draft' as const, updatedAt: new Date(0).toISOString(), blocks: [{ id: 'block', type: 'text' as const, data: { title: 'Hello', body: 'World' }, style: { background: '#ffffff', foreground: '#17211b', align: 'left' as const, radius: 'large' as const } }] }]
 };
 
@@ -17,6 +18,7 @@ describe('project normalization', () => {
     expect(result?.site?.homePageId).toBe('page');
     expect(result?.metadata?.kind).toBe('site');
     expect(result?.metadata?.hub.cardTitle).toBe('Project');
+    expect(result?.componentLibrary?.[0].name).toBe('Reusable lama');
   });
 
   it('replaces CSS injection colors', () => {

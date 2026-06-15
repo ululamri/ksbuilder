@@ -9,7 +9,7 @@ Android/Desktop Browser
 Spark Builder (SvelteKit)
   - editor UI
   - block schema
-  - render contract v1
+  - render contract v2
   - export target adapters
   - revision history
   - server-side publish adapter
@@ -29,6 +29,7 @@ Spark API CMS endpoints (future)
 - `src/lib/builder/types.ts`: versioned content contract
 - `src/lib/renderer/contract.ts`: framework-agnostic render contract
 - `catalog.ts`: extensible block registry
+- `image-optimizer.ts`: client-side image optimization and responsive variants
 - `security.ts`: URL and slug policy
 - `persistence.ts`: local draft persistence
 - `publish-adapter.ts`: replaceable deployment boundary
@@ -39,6 +40,7 @@ Spark API CMS endpoints (future)
 - `src/lib/server/cms-client.ts`: authenticated server-side Spark API client
 - `src/routes/api/builder`: stable same-origin gateway routes
 - `src/lib/components`: touch-first presentation components
+- `src/lib/server/local-media.ts`: file manager, media metadata, variant grouping, focal point storage
 
 The builder does not import code from the three Spark repositories. Local mode owns SQLite persistence. Integrated mode uses versioned JSON contracts and authenticated HTTP APIs.
 
@@ -50,7 +52,7 @@ The editor still runs on SvelteKit, but publishing/export is no longer tied to o
 Builder project schema
         |
         v
-render contract v1
+render contract v2
         |
         +--> static HTML adapter
         +--> Next.js adapter
@@ -58,6 +60,15 @@ render contract v1
 ```
 
 The critical boundary is the render contract, not the UI framework. That lets the builder keep one block schema while exporting multiple runtimes without duplicating block semantics by hand in every target.
+
+## Builder Domain Features
+
+- Global component library with symbol references
+- Dedicated grid layout block for mobile/tablet/desktop columns
+- Header CTA, navigation editor, and footer link builder
+- Local file manager with folders, rename/move/delete, and protected deletion for referenced assets
+- Client-side responsive image generation with stored focal point metadata
+- Public/runtime/export support for `srcset`, `sizes`, and image focal positioning
 
 ## Local Data
 
@@ -69,6 +80,16 @@ media/
 ```
 
 The database stores users, hashed sessions, projects, immutable revisions, audit events, media metadata, and form submissions. Back up the entire directory atomically.
+
+`local_media` now stores grouping and presentation metadata in addition to the file record:
+
+```txt
+asset_group_id
+variant_role
+width
+focal_x
+focal_y
+```
 
 ## Required CMS API
 

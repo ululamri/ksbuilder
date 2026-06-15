@@ -1,6 +1,29 @@
 import type { BuilderExportTarget, BuilderProject } from './types';
 import type { BuilderAiSettingsStatus, BuilderAiSettingsUpdateRequest, CmsEnvelope, CmsErrorEnvelope, CmsProjectRecord, CmsSession } from '$lib/contracts/cms';
 
+export type BuilderMediaVariant = {
+  id: string;
+  contentType: string;
+  size: number;
+  width: number;
+  variantRole: string;
+  url: string;
+};
+
+export type BuilderMediaAsset = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+  folder: string;
+  focalX: number;
+  focalY: number;
+  createdAt: string;
+  updatedAt: string;
+  url: string;
+  variants: BuilderMediaVariant[];
+};
+
 export class BuilderGatewayError extends Error {
   constructor(public code: string, message: string) {
     super(message);
@@ -65,23 +88,38 @@ export class BuilderCmsGateway {
     }));
   }
 
-  async media(): Promise<Array<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>> {
+  async media(): Promise<BuilderMediaAsset[]> {
     return envelope(await fetch('/api/builder/media', { credentials: 'same-origin' }));
   }
 
-  async upload(file: File, folder = '') {
+  async upload(
+    file: File,
+    folder = '',
+    input: {
+      parentAssetId?: string;
+      variantRole?: string;
+      variantWidth?: number;
+      focalX?: number;
+      focalY?: number;
+    } = {}
+  ) {
     const csrfToken = this.csrfToken ?? (await this.session()).csrfToken;
     const form = new FormData();
     form.set('file', file);
     if (folder.trim()) form.set('folder', folder.trim());
-    return envelope<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>(await fetch('/api/builder/media', {
+    if (input.parentAssetId) form.set('parentAssetId', input.parentAssetId);
+    if (input.variantRole) form.set('variantRole', input.variantRole);
+    if (input.variantWidth) form.set('variantWidth', String(input.variantWidth));
+    if (typeof input.focalX === 'number') form.set('focalX', String(input.focalX));
+    if (typeof input.focalY === 'number') form.set('focalY', String(input.focalY));
+    return envelope<BuilderMediaAsset>(await fetch('/api/builder/media', {
       method: 'POST', credentials: 'same-origin', headers: { 'x-csrf-token': csrfToken }, body: form
     }));
   }
 
-  async updateMedia(assetId: string, input: { fileName?: string; folder?: string | null }) {
+  async updateMedia(assetId: string, input: { fileName?: string; folder?: string | null; focalX?: number; focalY?: number }) {
     const csrfToken = this.csrfToken ?? (await this.session()).csrfToken;
-    return envelope<{ id: string; fileName: string; contentType: string; size: number; folder: string; createdAt: string; updatedAt: string; url: string }>(await fetch(`/api/builder/media/${encodeURIComponent(assetId)}`, {
+    return envelope<BuilderMediaAsset>(await fetch(`/api/builder/media/${encodeURIComponent(assetId)}`, {
       method: 'PUT',
       credentials: 'same-origin',
       headers: { 'content-type': 'application/json', 'x-csrf-token': csrfToken },

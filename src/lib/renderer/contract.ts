@@ -1,4 +1,4 @@
-import type { BuilderBlock, BuilderPage, BuilderProject } from '$lib/builder/types';
+import type { BuilderBlock, BuilderComponent, BuilderPage, BuilderProject } from '$lib/builder/types';
 import { safeImage, safeLink, safeMedia, safeVideoEmbed } from '$lib/builder/security';
 
 export const RENDER_CONTRACT_VERSION = 2;
@@ -48,11 +48,12 @@ export type RenderBlock =
   | (BaseRenderBlock & { type: 'richtext'; nodes: RichTextNode[] })
   | (BaseRenderBlock & { type: 'feature'; kicker: string; title: string; body: string })
   | (BaseRenderBlock & { type: 'cta'; title: string; body: string; button: string; href: string })
-  | (BaseRenderBlock & { type: 'image'; src: string; alt: string; caption: string })
+  | (BaseRenderBlock & { type: 'image'; src: string; srcSet: string; sizes: string; focalX: number; focalY: number; alt: string; caption: string })
   | (BaseRenderBlock & { type: 'video'; src: string; poster: string; caption: string; title: string; embedUrl: string; autoplay: boolean; loop: boolean; muted: boolean; controls: boolean; playsinline: boolean })
   | (BaseRenderBlock & { type: 'lottie'; src: string; title: string; loop: boolean; autoplay: boolean; speed: number })
   | (BaseRenderBlock & { type: 'gallery'; images: string[]; alt: string })
   | (BaseRenderBlock & { type: 'stats'; items: Array<{ value: string; label: string }> })
+  | (BaseRenderBlock & { type: 'grid'; title: string; body: string; columnsMobile: number; columnsTablet: number; columnsDesktop: number; items: Array<{ title: string; body: string; href: string; button: string }> })
   | (BaseRenderBlock & { type: 'quote'; quote: string; author: string; role: string })
   | (BaseRenderBlock & { type: 'form'; projectId: string; pageId: string; formId: string; title: string; body: string; button: string; action: string | null; fields: FormField[] });
 
@@ -88,6 +89,8 @@ export type SiteRenderContract = {
       font: NonNullable<BuilderProject['theme']>['font'];
       buttonRadius: NonNullable<BuilderProject['theme']>['buttonRadius'];
     };
+    headerCta: { label: string; href: string } | null;
+    footerLinks: Array<{ id: string; label: string; href: string }>;
     metadata: {
       kind: NonNullable<BuilderProject['metadata']>['kind'];
       audience: string;
@@ -144,6 +147,10 @@ export function createSiteRenderContract(project: BuilderProject, options: Creat
         font: project.theme?.font ?? 'modern',
         buttonRadius: project.theme?.buttonRadius ?? 'pill'
       },
+      headerCta: project.site?.headerCtaLabel && project.site?.headerCtaHref
+        ? { label: project.site.headerCtaLabel, href: safeLink(project.site.headerCtaHref) }
+        : null,
+      footerLinks: (project.site?.footerLinks ?? []).map((link) => ({ id: link.id, label: link.label, href: safeLink(link.href) })),
       metadata: {
         kind: metadata.kind,
         audience: metadata.audience,
@@ -171,7 +178,7 @@ export function createSiteRenderContract(project: BuilderProject, options: Creat
         noIndex: page.seo?.noIndex ?? false
       },
       updatedAt: page.updatedAt,
-      blocks: page.blocks.map((block) => toRenderBlock(block, {
+      blocks: expandBlocks(page.blocks, project.componentLibrary ?? []).map((block) => toRenderBlock(block, {
         resolveAssetUrl,
         resolveFormAction: options.resolveFormAction,
         project,
@@ -181,6 +188,20 @@ export function createSiteRenderContract(project: BuilderProject, options: Creat
       }))
     }))
   };
+}
+
+export function expandBlocks(blocks: BuilderBlock[], library: BuilderComponent[], seen = new Set<string>()): BuilderBlock[] {
+  return blocks.flatMap((block) => {
+    if (block.type !== 'symbol') return [block];
+    const componentId = block.data.componentId ?? '';
+    if (!componentId || seen.has(componentId)) return [];
+    const component = library.find((entry) => entry.id === componentId);
+    if (!component) return [];
+    return expandBlocks(component.blocks.map((entry) => ({
+      ...structuredClone(entry),
+      id: crypto.randomUUID()
+    })), library, new Set([...seen, componentId]));
+  });
 }
 
 export function exportedPages(project: BuilderProject): BuilderPage[] {
@@ -217,7 +238,7 @@ export function buttonRadiusValue(buttonRadius: SiteRenderContract['project']['t
 }
 
 export function exportedSiteCss(theme: SiteRenderContract['project']['theme']): string {
-  return `:root{--theme-primary:${theme.primary};--theme-accent:${theme.accent};--theme-surface:${theme.surface};--theme-text:${theme.text};--button-radius:${buttonRadiusValue(theme.buttonRadius)}}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Inter,system-ui,sans-serif;background:var(--theme-surface);color:var(--theme-text)}a{color:inherit}header{position:sticky;z-index:20;top:0;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px max(18px,calc((100vw - 1100px)/2));border-bottom:1px solid rgba(23,33,27,.1);background:color-mix(in srgb,var(--theme-surface) 90%,transparent);backdrop-filter:blur(16px)}header .brand{display:flex;align-items:center;gap:9px;color:inherit;text-decoration:none}header .brand span{display:grid;width:32px;height:32px;place-items:center;border-radius:10px;background:var(--theme-primary);color:var(--theme-accent);font-weight:900}nav{display:flex;gap:17px}nav a{color:inherit;font-size:12px;font-weight:700;text-decoration:none}main{display:grid;gap:16px;width:min(1100px,calc(100% - 28px));margin:0 auto;padding:24px 0 60px}.animation-shell{transition:opacity var(--animation-duration) ease var(--animation-delay),transform var(--animation-duration) cubic-bezier(.2,.7,.2,1) var(--animation-delay)}.animation-shell[data-animation='fade']:not(.is-visible){opacity:0}.animation-shell[data-animation='slide-up']:not(.is-visible){opacity:0;transform:translateY(28px)}.animation-shell[data-animation='slide-left']:not(.is-visible){opacity:0;transform:translateX(30px)}.animation-shell[data-animation='zoom']:not(.is-visible){opacity:0;transform:scale(.94)}.content-block{overflow:hidden}.with-shadow{box-shadow:0 18px 35px rgba(25,40,29,.13)}.hero{background:linear-gradient(145deg,var(--theme-primary),color-mix(in srgb,var(--theme-primary) 70%,#4c8b62))!important;color:#fff!important}.eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;color:#b8dfbe}.content-block h1{max-width:480px;margin:10px 0 0;font-size:42px;line-height:.98;letter-spacing:-.055em}.content-block h2{margin:4px 0 0;font-size:25px;line-height:1.08;letter-spacing:-.035em}.content-block h3{margin:16px 0 8px;font-size:18px;line-height:1.15}.content-block p{margin:13px 0 0;line-height:1.58;opacity:.74}.primary-action{display:inline-flex;margin-top:22px;padding:13px 17px;border-radius:var(--button-radius);background:var(--theme-accent);color:var(--theme-primary);font-size:13px;font-weight:800;text-decoration:none}.feature{border:1px solid rgba(23,33,27,.08)}.feature-number{display:grid;width:38px;height:38px;place-items:center;border-radius:13px;background:#ecf3e8;color:#397044;font-weight:800}.cta{background:color-mix(in srgb,var(--theme-primary) 10%,white)!important}.content-block img,.content-block video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:18px;background:#0b0f0c}.content-block small{display:block;margin-top:10px;opacity:.65}.video-frame{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:18px;background:#000}.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.image-placeholder,.lottie-placeholder{display:grid;min-height:120px;place-items:center;padding:20px;border:1px dashed currentColor;border-radius:18px;opacity:.6}.gallery{display:grid;grid-template-columns:1.15fr .85fr;grid-template-rows:1fr 1fr;gap:7px}.gallery img{height:100%;aspect-ratio:auto}.gallery img:first-child{grid-row:1/3;min-height:240px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats div{display:grid;gap:4px;padding:16px 6px;border-radius:16px;background:rgba(23,33,27,.05);text-align:center}.stats strong{font-size:26px;letter-spacing:-.05em}.stats span{font-size:10px;opacity:.65}blockquote{margin:0;font-size:25px;font-weight:700;line-height:1.2;letter-spacing:-.035em}.quote-author{display:grid;gap:2px;margin-top:18px;font-size:12px}.quote-author span{opacity:.6}.richtext p{white-space:pre-wrap}.bullet{display:flex;gap:9px;margin-top:8px;line-height:1.5}.bullet i{width:6px;height:6px;margin-top:8px;border-radius:50%;background:var(--theme-primary)}.site-form{display:grid;gap:12px;margin-top:20px;text-align:left}.site-form label{display:grid;gap:6px;font-size:11px;font-weight:750}.site-form input,.site-form textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid rgba(23,33,27,.18);border-radius:12px;background:#fff;font:inherit}.site-form textarea{min-height:100px;resize:vertical}.site-form button{min-height:46px;border:0;border-radius:var(--button-radius);background:var(--theme-primary);color:#fff;font-weight:800}.honeypot{position:absolute!important;left:-9999px!important}.divider{display:grid;place-items:center;padding:14px 0}.divider i{height:1px;background:#cbd2cc}.spacer{min-height:8px}footer{display:flex;justify-content:space-between;gap:20px;padding:32px max(18px,calc((100vw - 1100px)/2));background:var(--theme-primary);color:#fff}footer span{opacity:.7}@media(prefers-reduced-motion:reduce){.animation-shell{transition:none!important;transform:none!important;opacity:1!important}}@media(max-width:700px){nav{max-width:55vw;overflow:auto}nav a{white-space:nowrap}footer{display:grid}}`;
+  return `:root{--theme-primary:${theme.primary};--theme-accent:${theme.accent};--theme-surface:${theme.surface};--theme-text:${theme.text};--button-radius:${buttonRadiusValue(theme.buttonRadius)}}*{box-sizing:border-box}html,body{margin:0;padding:0}body{font-family:Inter,system-ui,sans-serif;background:var(--theme-surface);color:var(--theme-text)}a{color:inherit}header{position:sticky;z-index:20;top:0;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:14px max(18px,calc((100vw - 1100px)/2));border-bottom:1px solid rgba(23,33,27,.1);background:color-mix(in srgb,var(--theme-surface) 90%,transparent);backdrop-filter:blur(16px)}header .header-main{display:flex;align-items:center;justify-content:space-between;gap:20px;width:100%}header .brand{display:flex;align-items:center;gap:9px;color:inherit;text-decoration:none}header .brand span{display:grid;width:32px;height:32px;place-items:center;border-radius:10px;background:var(--theme-primary);color:var(--theme-accent);font-weight:900}header .header-actions{display:flex;align-items:center;gap:14px}nav{display:flex;gap:17px}nav a{color:inherit;font-size:12px;font-weight:700;text-decoration:none}.header-cta,.grid-link{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 14px;border-radius:var(--button-radius);background:var(--theme-primary);color:#fff;font-size:12px;font-weight:800;text-decoration:none}main{display:grid;gap:16px;width:min(1100px,calc(100% - 28px));margin:0 auto;padding:24px 0 60px}.animation-shell{transition:opacity var(--animation-duration) ease var(--animation-delay),transform var(--animation-duration) cubic-bezier(.2,.7,.2,1) var(--animation-delay)}.animation-shell[data-animation='fade']:not(.is-visible){opacity:0}.animation-shell[data-animation='slide-up']:not(.is-visible){opacity:0;transform:translateY(28px)}.animation-shell[data-animation='slide-left']:not(.is-visible){opacity:0;transform:translateX(30px)}.animation-shell[data-animation='zoom']:not(.is-visible){opacity:0;transform:scale(.94)}.content-block{overflow:hidden}.with-shadow{box-shadow:0 18px 35px rgba(25,40,29,.13)}.hero{background:linear-gradient(145deg,var(--theme-primary),color-mix(in srgb,var(--theme-primary) 70%,#4c8b62))!important;color:#fff!important}.eyebrow{font-size:10px;font-weight:800;letter-spacing:.16em;color:#b8dfbe}.content-block h1{max-width:480px;margin:10px 0 0;font-size:42px;line-height:.98;letter-spacing:-.055em}.content-block h2{margin:4px 0 0;font-size:25px;line-height:1.08;letter-spacing:-.035em}.content-block h3{margin:16px 0 8px;font-size:18px;line-height:1.15}.content-block p{margin:13px 0 0;line-height:1.58;opacity:.74}.primary-action{display:inline-flex;margin-top:22px;padding:13px 17px;border-radius:var(--button-radius);background:var(--theme-accent);color:var(--theme-primary);font-size:13px;font-weight:800;text-decoration:none}.feature{border:1px solid rgba(23,33,27,.08)}.feature-number{display:grid;width:38px;height:38px;place-items:center;border-radius:13px;background:#ecf3e8;color:#397044;font-weight:800}.cta{background:color-mix(in srgb,var(--theme-primary) 10%,white)!important}.content-block img,.content-block video{display:block;width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:18px;background:#0b0f0c}.content-block small{display:block;margin-top:10px;opacity:.65}.video-frame{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;border-radius:18px;background:#000}.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.image-placeholder,.lottie-placeholder{display:grid;min-height:120px;place-items:center;padding:20px;border:1px dashed currentColor;border-radius:18px;opacity:.6}.gallery{display:grid;grid-template-columns:1.15fr .85fr;grid-template-rows:1fr 1fr;gap:7px}.gallery img{height:100%;aspect-ratio:auto}.gallery img:first-child{grid-row:1/3;min-height:240px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats div{display:grid;gap:4px;padding:16px 6px;border-radius:16px;background:rgba(23,33,27,.05);text-align:center}.stats strong{font-size:26px;letter-spacing:-.05em}.stats span{font-size:10px;opacity:.65}.card-grid{display:grid;grid-template-columns:repeat(var(--grid-mobile,1),minmax(0,1fr));gap:10px;margin-top:18px}.card-grid article{display:grid;gap:8px;padding:16px;border-radius:18px;background:rgba(23,33,27,.04)}.card-grid strong{font-size:15px}@media(min-width:700px){.card-grid{grid-template-columns:repeat(var(--grid-tablet,2),minmax(0,1fr))}}@media(min-width:1024px){.card-grid{grid-template-columns:repeat(var(--grid-desktop,3),minmax(0,1fr))}}blockquote{margin:0;font-size:25px;font-weight:700;line-height:1.2;letter-spacing:-.035em}.quote-author{display:grid;gap:2px;margin-top:18px;font-size:12px}.quote-author span{opacity:.6}.richtext p{white-space:pre-wrap}.bullet{display:flex;gap:9px;margin-top:8px;line-height:1.5}.bullet i{width:6px;height:6px;margin-top:8px;border-radius:50%;background:var(--theme-primary)}.site-form{display:grid;gap:12px;margin-top:20px;text-align:left}.site-form label{display:grid;gap:6px;font-size:11px;font-weight:750}.site-form input,.site-form textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid rgba(23,33,27,.18);border-radius:12px;background:#fff;font:inherit}.site-form textarea{min-height:100px;resize:vertical}.site-form button{min-height:46px;border:0;border-radius:var(--button-radius);background:var(--theme-primary);color:#fff;font-weight:800}.honeypot{position:absolute!important;left:-9999px!important}.divider{display:grid;place-items:center;padding:14px 0}.divider i{height:1px;background:#cbd2cc}.spacer{min-height:8px}footer{display:grid;gap:16px;padding:32px max(18px,calc((100vw - 1100px)/2));background:var(--theme-primary);color:#fff}footer .footer-main{display:flex;justify-content:space-between;gap:20px}footer .footer-links{display:flex;flex-wrap:wrap;gap:12px}footer .footer-links a{font-size:12px;font-weight:700;text-decoration:none}footer span{opacity:.7}@media(prefers-reduced-motion:reduce){.animation-shell{transition:none!important;transform:none!important;opacity:1!important}}@media(max-width:700px){header .header-main{display:grid}header .header-actions{display:grid;justify-items:start}nav{max-width:55vw;overflow:auto}nav a{white-space:nowrap}footer .footer-main{display:grid}}`;
 }
 
 function toRenderBlock(block: BuilderBlock, context: {
@@ -250,7 +271,17 @@ function toRenderBlock(block: BuilderBlock, context: {
   if (block.type === 'richtext') return { ...base, type: 'richtext', nodes: richTextNodes(d.content ?? '') };
   if (block.type === 'feature') return { ...base, type: 'feature', kicker: d.kicker ?? '', title: d.title ?? '', body: d.body ?? '' };
   if (block.type === 'cta') return { ...base, type: 'cta', title: d.title ?? '', body: d.body ?? '', button: d.button ?? '', href: safeLink(d.href ?? '') };
-  if (block.type === 'image') return { ...base, type: 'image', src: context.resolveAssetUrl(safeImage(d.src ?? '')), alt: d.alt ?? '', caption: d.caption ?? '' };
+  if (block.type === 'image') return {
+    ...base,
+    type: 'image',
+    src: context.resolveAssetUrl(safeImage(d.src ?? '')),
+    srcSet: normalizeImageSrcSet(d.srcset ?? '', context.resolveAssetUrl),
+    sizes: normalizeImageSizes(d.sizes ?? ''),
+    focalX: sanitizeFocalValue(d.focalX, 50),
+    focalY: sanitizeFocalValue(d.focalY, 50),
+    alt: d.alt ?? '',
+    caption: d.caption ?? ''
+  };
   if (block.type === 'video') return {
     ...base,
     type: 'video',
@@ -276,6 +307,16 @@ function toRenderBlock(block: BuilderBlock, context: {
   };
   if (block.type === 'gallery') return { ...base, type: 'gallery', images: [d.image1, d.image2, d.image3].map((value) => context.resolveAssetUrl(safeImage(value ?? ''))), alt: d.alt ?? '' };
   if (block.type === 'stats') return { ...base, type: 'stats', items: [1, 2, 3].map((index) => ({ value: d[`value${index}`] ?? '', label: d[`label${index}`] ?? '' })) };
+  if (block.type === 'grid') return {
+    ...base,
+    type: 'grid',
+    title: d.title ?? '',
+    body: d.body ?? '',
+    columnsMobile: clampColumns(d.columnsMobile, 1, 2, 1),
+    columnsTablet: clampColumns(d.columnsTablet, 1, 3, 2),
+    columnsDesktop: clampColumns(d.columnsDesktop, 1, 4, 3),
+    items: parseGridItems(d.items ?? '')
+  };
   if (block.type === 'quote') return { ...base, type: 'quote', quote: d.quote ?? '', author: d.author ?? '', role: d.role ?? '' };
   return {
     ...base,
@@ -289,6 +330,45 @@ function toRenderBlock(block: BuilderBlock, context: {
     action: resolvedFormAction(context, block),
     fields: parseFormFields(d.fields ?? '')
   };
+}
+
+function parseGridItems(value: string): Array<{ title: string; body: string; href: string; button: string }> {
+  return value
+    .split('\n')
+    .map((line) => line.split('|').map((part) => part.trim()))
+    .filter((parts) => parts.length >= 2)
+    .slice(0, 12)
+    .map(([title, body, href, button]) => ({ title, body, href: safeLink(href ?? ''), button: button ?? 'Lihat detail' }));
+}
+
+function normalizeImageSrcSet(value: string, resolveAssetUrl: (value: string) => string): string {
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [candidate, descriptor] = item.split(/\s+/);
+      const safe = safeImage(candidate ?? '');
+      if (!safe) return '';
+      return `${resolveAssetUrl(safe)}${descriptor ? ` ${descriptor}` : ''}`;
+    })
+    .filter(Boolean)
+    .join(', ');
+}
+
+function normalizeImageSizes(value: string): string {
+  const cleaned = String(value || '').trim().replace(/[^a-z0-9(),.%\s/-]/gi, '').slice(0, 160);
+  return cleaned || '100vw';
+}
+
+function sanitizeFocalValue(value: string | undefined, fallback: number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(numeric * 10) / 10));
+}
+
+function clampColumns(value: string | undefined, min: number, max: number, fallback: number) {
+  return Math.max(min, Math.min(max, Number(value) || fallback));
 }
 
 function resolvedFormAction(

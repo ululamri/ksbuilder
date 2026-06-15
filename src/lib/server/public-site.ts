@@ -1,9 +1,9 @@
 import type { BuilderBlock, BuilderPage, BuilderProject } from '$lib/builder/types';
 import { getPublishedProject } from './local-cms';
-import { resolveHomePageId } from '$lib/renderer/contract';
+import { expandBlocks, resolveHomePageId } from '$lib/renderer/contract';
 
 export function publicSite(projectId: string, path = ''): { project: BuilderProject; page: BuilderPage } {
-  const project = getPublishedProject(projectId);
+  const project = rewriteProjectBlocks(getPublishedProject(projectId));
   const slug = path.replace(/^\/+|\/+$/g, '');
   const publishedPages = project.pages.filter((item) => item.status === 'published');
   const homePageId = resolveHomePageId(project, publishedPages);
@@ -21,5 +21,20 @@ function rewriteMediaPage(page: BuilderPage): BuilderPage {
 }
 
 function rewriteMediaBlock(block: BuilderBlock): BuilderBlock {
-  return { ...block, data: Object.fromEntries(Object.entries(block.data).map(([key, value]) => [key, value.replace(/^\/api\/builder\/media\//, '/site-assets/')])) };
+  return {
+    ...block,
+    data: Object.fromEntries(
+      Object.entries(block.data).map(([key, value]) => [key, value.replace(/\/api\/builder\/media\//g, '/site-assets/')])
+    )
+  };
+}
+
+function rewriteProjectBlocks(project: BuilderProject): BuilderProject {
+  return {
+    ...project,
+    pages: project.pages.map((page) => ({
+      ...page,
+      blocks: expandBlocks(page.blocks, project.componentLibrary ?? []).map(rewriteMediaBlock)
+    }))
+  };
 }

@@ -1,4 +1,4 @@
-export type BlockType = 'hero' | 'text' | 'richtext' | 'feature' | 'cta' | 'image' | 'video' | 'lottie' | 'gallery' | 'stats' | 'quote' | 'form' | 'divider' | 'spacer';
+export type BlockType = 'hero' | 'text' | 'richtext' | 'feature' | 'cta' | 'image' | 'video' | 'lottie' | 'gallery' | 'stats' | 'quote' | 'form' | 'divider' | 'spacer' | 'symbol' | 'grid';
 export type DeviceMode = 'mobile' | 'tablet' | 'desktop';
 export type BuilderExportTarget = 'static-html' | 'nextjs';
 export type BuilderProjectKind = 'site' | 'core' | 'learn' | 'lab' | 'hub';
@@ -37,6 +37,15 @@ export type BuilderProjectMetadata = {
   learn: BuilderLearnMetadata;
   lab: BuilderLabMetadata;
   hub: BuilderHubMetadata;
+};
+
+export type BuilderComponent = {
+  id: string;
+  name: string;
+  category: 'Section' | 'Hero' | 'Content' | 'Conversion' | 'Media' | 'Custom';
+  description: string;
+  blocks: BuilderBlock[];
+  updatedAt: string;
 };
 
 export type BuilderBlock = {
@@ -89,10 +98,14 @@ export type BuilderProject = {
     headerTitle: string;
     footerText: string;
     navigation: Array<{ id: string; label: string; pageId: string }>;
+    headerCtaLabel?: string;
+    headerCtaHref?: string;
+    footerLinks?: Array<{ id: string; label: string; href: string }>;
     homePageId?: string;
     formAction?: string;
   };
   metadata?: BuilderProjectMetadata;
+  componentLibrary?: BuilderComponent[];
   reusableSections?: Array<{ id: string; name: string; blocks: BuilderBlock[] }>;
   pages: BuilderPage[];
 };

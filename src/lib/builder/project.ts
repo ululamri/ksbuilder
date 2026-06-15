@@ -7,7 +7,15 @@ export function starterProject(): BuilderProject {
     id: crypto.randomUUID(),
     name: 'Karyra Spark',
     theme: { primary: '#17211b', accent: '#d9ff62', surface: '#ffffff', text: '#17211b', font: 'modern', buttonRadius: 'pill' },
-    site: { headerTitle: 'Karyra Spark', footerText: 'Belajar aman. Tumbuh bersama.', navigation: [], formAction: '' },
+    site: {
+      headerTitle: 'Karyra Spark',
+      footerText: 'Belajar aman. Tumbuh bersama.',
+      navigation: [],
+      headerCtaLabel: 'Mulai',
+      headerCtaHref: '/core',
+      footerLinks: [],
+      formAction: ''
+    },
     metadata: {
       kind: 'site',
       audience: 'Pembelajar Indonesia',
@@ -20,6 +28,7 @@ export function starterProject(): BuilderProject {
       lab: { profile: '', runtime: 'browser', difficulty: 'guided', estimatedMinutes: null },
       hub: { listed: false, category: '', cardTitle: 'Karyra Spark', cardSummary: 'Landing page dan pengalaman belajar mobile-first.' }
     },
+    componentLibrary: [],
     reusableSections: [],
     pages: [
       {

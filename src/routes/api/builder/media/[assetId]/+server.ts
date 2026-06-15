@@ -18,10 +18,12 @@ export const PUT: RequestHandler = async (event) => {
   try {
     assertMutationRequest(event);
     const user = requireLocalUser(event.cookies);
-    const payload = await event.request.json() as { fileName?: unknown; folder?: unknown };
+    const payload = await event.request.json() as { fileName?: unknown; folder?: unknown; focalX?: unknown; focalY?: unknown };
     return cmsOk(updateLocalMedia(event.params.assetId, user, event.locals.requestId, {
       fileName: typeof payload.fileName === 'string' ? payload.fileName : undefined,
-      folder: typeof payload.folder === 'string' ? payload.folder : payload.folder === null ? null : undefined
+      folder: typeof payload.folder === 'string' ? payload.folder : payload.folder === null ? null : undefined,
+      focalX: typeof payload.focalX === 'number' ? payload.focalX : undefined,
+      focalY: typeof payload.focalY === 'number' ? payload.focalY : undefined
     }), event.locals.requestId);
   } catch (error) { return cmsFailure(error, event.locals.requestId); }
 };

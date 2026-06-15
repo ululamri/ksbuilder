@@ -327,6 +327,15 @@ button:disabled { cursor: not-allowed; opacity: .35; }
 .revision-list small { margin-top: 3px; color: #7c887f; font-size: 9px; }
 .revision-list button { min-height: 34px; border: 0; border-radius: 10px; background: #eaf0e8; color: #315c42; font-size: 10px; font-weight: 800; }
 .panel-subtitle { margin: 24px 0 10px; font-size: 14px; }
+.component-card { display: grid; gap: 8px; }
+.component-card > button { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; width: 100%; padding: 12px; border: 1px solid #e0e5e0; border-radius: 16px; background: #fff; text-align: left; }
+.component-card > button > span { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 13px; background: #17211b; color: #d9ff62; font-size: 10px; font-weight: 900; }
+.component-card-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.component-card-actions button { min-height: 40px; border-radius: 13px; }
+.nav-editor { display: grid; gap: 10px; }
+.nav-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto auto; gap: 8px; align-items: center; }
+.nav-editor-row input, .nav-editor-row select { min-height: 42px; }
+@media (max-width: 700px) { .nav-editor-row { grid-template-columns: 1fr; } }
 .editable-block[draggable='true'] { cursor: grab; }
 .editable-block[draggable='true']:active { cursor: grabbing; }
 .submission-list { display: grid; gap: 10px; margin-top: 16px; }

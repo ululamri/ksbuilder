@@ -9,7 +9,7 @@
     draft = structuredClone(block);
   });
 
-  const fieldLabels: Record<string, string> = { eyebrow: 'Label kecil', title: 'Judul', body: 'Deskripsi', content: 'Konten terstruktur', fields: 'Field (Label|name|type|required)', success: 'Pesan sukses', button: 'Teks tombol', href: 'Tautan', kicker: 'Nomor/label', src: 'URL media atau YouTube/Vimeo', poster: 'Poster video HTTPS', autoplay: 'Putar otomatis', loop: 'Ulangi', muted: 'Tanpa suara', controls: 'Tampilkan kontrol', playsinline: 'Putar dalam halaman', speed: 'Kecepatan (0.25-3)', alt: 'Teks alternatif', caption: 'Keterangan', size: 'Tinggi (px)', image1: 'Gambar pertama', image2: 'Gambar kedua', image3: 'Gambar ketiga', quote: 'Kutipan', author: 'Nama', role: 'Peran', width: 'Lebar (%)', value1: 'Angka 1', value2: 'Angka 2', value3: 'Angka 3', label1: 'Label 1', label2: 'Label 2', label3: 'Label 3' };
+  const fieldLabels: Record<string, string> = { eyebrow: 'Label kecil', title: 'Judul', body: 'Deskripsi', content: 'Konten terstruktur', fields: 'Field (Label|name|type|required)', success: 'Pesan sukses', button: 'Teks tombol', href: 'Tautan', kicker: 'Nomor/label', src: 'URL media atau YouTube/Vimeo', poster: 'Poster video HTTPS', autoplay: 'Putar otomatis', loop: 'Ulangi', muted: 'Tanpa suara', controls: 'Tampilkan kontrol', playsinline: 'Putar dalam halaman', speed: 'Kecepatan (0.25-3)', alt: 'Teks alternatif', caption: 'Keterangan', size: 'Tinggi (px)', image1: 'Gambar pertama', image2: 'Gambar kedua', image3: 'Gambar ketiga', quote: 'Kutipan', author: 'Nama', role: 'Peran', width: 'Lebar (%)', value1: 'Angka 1', value2: 'Angka 2', value3: 'Angka 3', label1: 'Label 1', label2: 'Label 2', label3: 'Label 3', componentId: 'ID komponen global', columnsMobile: 'Kolom mobile', columnsTablet: 'Kolom tablet', columnsDesktop: 'Kolom desktop', items: 'Item grid (Title|Body|Href|Button)' };
   const devices: DeviceMode[] = ['mobile', 'tablet', 'desktop'];
   const booleanFields = new Set(['autoplay', 'loop', 'muted', 'controls', 'playsinline']);
 </script>
@@ -24,7 +24,7 @@
         {#if booleanFields.has(key)}<select bind:value={draft.data[key]}><option value="true">Ya</option><option value="false">Tidak</option></select>{:else if key === 'body' || key === 'quote' || key === 'content' || key === 'fields'}<textarea bind:value={draft.data[key]} rows={key === 'content' || key === 'fields' ? 7 : 4}></textarea>{:else}<input bind:value={draft.data[key]} inputmode={key === 'size' || key === 'width' || key === 'speed' ? 'decimal' : 'text'} />{/if}
       </label>
     {/each}
-    {#if block.type !== 'spacer'}
+    {#if block.type !== 'spacer' && block.type !== 'symbol'}
       <div class="group"><span>Tampilan</span><div class="color-row"><label>Warna latar<input type="color" bind:value={draft.style.background} /></label><label>Warna teks<input type="color" bind:value={draft.style.foreground} /></label></div></div>
       <div class="segmented"><button class:active={draft.style.align === 'left'} onclick={() => draft.style.align = 'left'}>Kiri</button><button class:active={draft.style.align === 'center'} onclick={() => draft.style.align = 'center'}>Rata tengah</button></div>
       <div class="group"><span>Jarak dalam</span><div class="segmented triple"><button class:active={draft.style.padding === 'compact'} onclick={() => draft.style.padding = 'compact'}>Rapat</button><button class:active={draft.style.padding === 'normal'} onclick={() => draft.style.padding = 'normal'}>Normal</button><button class:active={draft.style.padding === 'roomy'} onclick={() => draft.style.padding = 'roomy'}>Lega</button></div></div>
@@ -35,7 +35,7 @@
       {#if draft.style.animation !== 'none'}<div class="segmented triple"><button class:active={draft.style.animationDuration === 'fast'} onclick={() => draft.style.animationDuration = 'fast'}>Cepat</button><button class:active={draft.style.animationDuration === 'normal'} onclick={() => draft.style.animationDuration = 'normal'}>Normal</button><button class:active={draft.style.animationDuration === 'slow'} onclick={() => draft.style.animationDuration = 'slow'}>Lambat</button></div><label><span>Delay (0-2000 ms)</span><input type="number" min="0" max="2000" step="50" bind:value={draft.style.animationDelay} /></label><label class="toggle"><span>Hanya sekali</span><input type="checkbox" bind:checked={draft.style.animationOnce} /></label>{/if}
     {/if}
   </div>
-  <footer><button class="delete" onclick={onremove}><Icon name="trash" size={18} /> Hapus</button><button class="reuse" onclick={() => onsaveReusable(structuredClone(draft))}>Reusable</button><button class="save" onclick={() => onupdate(structuredClone(draft))}><Icon name="check" size={18} /> Simpan</button></footer>
+  <footer><button class="delete" onclick={onremove}><Icon name="trash" size={18} /> Hapus</button>{#if block.type !== 'symbol'}<button class="reuse" onclick={() => onsaveReusable(structuredClone(draft))}>Library</button>{/if}<button class="save" onclick={() => onupdate(structuredClone(draft))}><Icon name="check" size={18} /> Simpan</button></footer>
 </aside>
 
 <style>

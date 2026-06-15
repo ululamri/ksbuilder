@@ -72,6 +72,13 @@ export const blockCatalog: BlockDefinition[] = [
     defaults: { value1: '12+', label1: 'Modul', value2: '40+', label2: 'Materi', value3: '100%', label3: 'Praktis' }
   },
   {
+    type: 'grid',
+    label: 'Grid layout',
+    description: 'Grid kartu responsif dengan kontrol kolom.',
+    icon: 'GRID',
+    defaults: { title: 'Jelajahi bagian utama', body: 'Susun highlight atau fitur dalam grid mobile-first.', columnsMobile: '1', columnsTablet: '2', columnsDesktop: '3', items: 'Core|Fondasi materi dan jalur belajar.|/core|Lihat Core\nLearn|Lesson yang mudah dipindai di mobile.|/learn|Buka Learn\nLab|Praktik interaktif dan simulasi.|/lab|Masuk Lab' }
+  },
+  {
     type: 'quote',
     label: 'Kutipan',
     description: 'Testimoni atau pesan utama.',
@@ -98,6 +105,13 @@ export const blockCatalog: BlockDefinition[] = [
     description: 'Atur ruang antarkonten.',
     icon: '--',
     defaults: { size: '32' }
+  },
+  {
+    type: 'symbol',
+    label: 'Komponen global',
+    description: 'Reference ke library komponen proyek.',
+    icon: 'SYM',
+    defaults: { componentId: '' }
   }
 ];
 

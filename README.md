@@ -10,11 +10,12 @@ It is designed to work in two modes:
 ## Capabilities
 
 - Touch-first Android/PWA and desktop editor
-- Blocks for hero, text, structured rich text, feature, CTA, image, gallery, statistics, quote, forms, divider, and spacing
+- Blocks for hero, text, structured rich text, feature, CTA, image, gallery, statistics, quote, forms, divider, spacing, global symbols, and responsive grids
 - Insert, edit, duplicate, delete, drag reorder, touch reorder, undo, and redo
-- Pages, reusable sections, templates, layer navigator, and project dashboard
-- Global theme, header/footer, automatic navigation, SEO, responsive visibility, and device previews
+- Pages, templates, layer navigator, project dashboard, and global component library
+- Global theme, header/footer builder, automatic navigation, SEO, responsive visibility, and device previews
 - Local media library and file manager for JPEG, PNG, WebP, AVIF, GIF, MP4, WebM, and validated Lottie JSON
+- Bulk media upload, responsive image variants, focal-point control, and folder-based asset management
 - Native video, privacy-enhanced YouTube/Vimeo embeds, Lottie, and reduced-motion-aware entrance animations
 - Folder-based asset organization, rename/move/delete actions, and copyable asset URLs inside the builder
 - Framework-agnostic render contract with export adapters for static HTML and Next.js
@@ -94,6 +95,13 @@ Each export now includes:
 - `hub.manifest.json`
 
 `hub.manifest.json` is a consumer-friendly summary for `spark-hub` style catalog/listing runtimes.
+
+The render contract also carries:
+
+- expanded symbol blocks
+- header/footer navigation structure
+- responsive grid block data
+- responsive image data (`src`, `srcSet`, `sizes`, focal point)
 
 ## Integration Boundary
 
