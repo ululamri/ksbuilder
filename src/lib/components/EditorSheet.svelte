@@ -1,0 +1,43 @@
+<script lang="ts">
+  import type { BuilderBlock, DeviceMode } from '$lib/builder/types';
+  import Icon from './Icon.svelte';
+
+  let { block, onclose, onupdate, onremove, onsaveReusable }: { block: BuilderBlock; onclose: () => void; onupdate: (block: BuilderBlock) => void; onremove: () => void; onsaveReusable: (block: BuilderBlock) => void } = $props();
+  let draft = $state<BuilderBlock>({} as BuilderBlock);
+
+  $effect.pre(() => {
+    draft = structuredClone(block);
+  });
+
+  const fieldLabels: Record<string, string> = { eyebrow: 'Label kecil', title: 'Judul', body: 'Deskripsi', content: 'Konten terstruktur', fields: 'Field (Label|name|type|required)', success: 'Pesan sukses', button: 'Teks tombol', href: 'Tautan', kicker: 'Nomor/label', src: 'URL media atau YouTube/Vimeo', poster: 'Poster video HTTPS', autoplay: 'Putar otomatis', loop: 'Ulangi', muted: 'Tanpa suara', controls: 'Tampilkan kontrol', playsinline: 'Putar dalam halaman', speed: 'Kecepatan (0.25-3)', alt: 'Teks alternatif', caption: 'Keterangan', size: 'Tinggi (px)', image1: 'Gambar pertama', image2: 'Gambar kedua', image3: 'Gambar ketiga', quote: 'Kutipan', author: 'Nama', role: 'Peran', width: 'Lebar (%)', value1: 'Angka 1', value2: 'Angka 2', value3: 'Angka 3', label1: 'Label 1', label2: 'Label 2', label3: 'Label 3' };
+  const devices: DeviceMode[] = ['mobile', 'tablet', 'desktop'];
+  const booleanFields = new Set(['autoplay', 'loop', 'muted', 'controls', 'playsinline']);
+</script>
+
+<button class="scrim" aria-label="Tutup editor" onclick={onclose}></button>
+<aside class="sheet" aria-label="Editor blok">
+  <div class="grabber"></div>
+  <header><div><span>Edit blok</span><h2>{block.type}</h2></div><button class="icon-button" onclick={onclose} aria-label="Tutup"><Icon name="close" /></button></header>
+  <div class="form-scroll">
+    {#each Object.keys(draft.data) as key}
+      <label><span>{fieldLabels[key] ?? key}</span>
+        {#if booleanFields.has(key)}<select bind:value={draft.data[key]}><option value="true">Ya</option><option value="false">Tidak</option></select>{:else if key === 'body' || key === 'quote' || key === 'content' || key === 'fields'}<textarea bind:value={draft.data[key]} rows={key === 'content' || key === 'fields' ? 7 : 4}></textarea>{:else}<input bind:value={draft.data[key]} inputmode={key === 'size' || key === 'width' || key === 'speed' ? 'decimal' : 'text'} />{/if}
+      </label>
+    {/each}
+    {#if block.type !== 'spacer'}
+      <div class="group"><span>Tampilan</span><div class="color-row"><label>Warna latar<input type="color" bind:value={draft.style.background} /></label><label>Warna teks<input type="color" bind:value={draft.style.foreground} /></label></div></div>
+      <div class="segmented"><button class:active={draft.style.align === 'left'} onclick={() => draft.style.align = 'left'}>Kiri</button><button class:active={draft.style.align === 'center'} onclick={() => draft.style.align = 'center'}>Rata tengah</button></div>
+      <div class="group"><span>Jarak dalam</span><div class="segmented triple"><button class:active={draft.style.padding === 'compact'} onclick={() => draft.style.padding = 'compact'}>Rapat</button><button class:active={draft.style.padding === 'normal'} onclick={() => draft.style.padding = 'normal'}>Normal</button><button class:active={draft.style.padding === 'roomy'} onclick={() => draft.style.padding = 'roomy'}>Lega</button></div></div>
+      <div class="group"><span>Sudut</span><div class="segmented triple"><button class:active={draft.style.radius === 'none'} onclick={() => draft.style.radius = 'none'}>Kotak</button><button class:active={draft.style.radius === 'medium'} onclick={() => draft.style.radius = 'medium'}>Sedang</button><button class:active={draft.style.radius === 'large'} onclick={() => draft.style.radius = 'large'}>Bulat</button></div></div>
+      <label class="toggle"><span>Bayangan kartu</span><input type="checkbox" bind:checked={draft.style.shadow} /></label>
+      <div class="group"><span>Sembunyikan pada</span><div class="visibility">{#each devices as device}<label><input type="checkbox" checked={draft.style.hiddenOn?.includes(device)} onchange={(event) => draft.style.hiddenOn = event.currentTarget.checked ? [...(draft.style.hiddenOn ?? []), device] : (draft.style.hiddenOn ?? []).filter((item) => item !== device)} />{device}</label>{/each}</div></div>
+      <div class="group"><span>Animasi masuk</span><select bind:value={draft.style.animation}><option value="none">Tanpa animasi</option><option value="fade">Fade</option><option value="slide-up">Slide naik</option><option value="slide-left">Slide dari kanan</option><option value="zoom">Zoom lembut</option></select></div>
+      {#if draft.style.animation !== 'none'}<div class="segmented triple"><button class:active={draft.style.animationDuration === 'fast'} onclick={() => draft.style.animationDuration = 'fast'}>Cepat</button><button class:active={draft.style.animationDuration === 'normal'} onclick={() => draft.style.animationDuration = 'normal'}>Normal</button><button class:active={draft.style.animationDuration === 'slow'} onclick={() => draft.style.animationDuration = 'slow'}>Lambat</button></div><label><span>Delay (0-2000 ms)</span><input type="number" min="0" max="2000" step="50" bind:value={draft.style.animationDelay} /></label><label class="toggle"><span>Hanya sekali</span><input type="checkbox" bind:checked={draft.style.animationOnce} /></label>{/if}
+    {/if}
+  </div>
+  <footer><button class="delete" onclick={onremove}><Icon name="trash" size={18} /> Hapus</button><button class="reuse" onclick={() => onsaveReusable(structuredClone(draft))}>Reusable</button><button class="save" onclick={() => onupdate(structuredClone(draft))}><Icon name="check" size={18} /> Simpan</button></footer>
+</aside>
+
+<style>
+  .scrim{position:fixed;inset:0;z-index:70;border:0;background:rgba(14,20,16,.42);backdrop-filter:blur(2px)}.sheet{position:fixed;z-index:80;right:0;bottom:0;left:0;max-height:88svh;padding:8px 18px calc(18px + env(safe-area-inset-bottom));border-radius:28px 28px 0 0;background:#fff;box-shadow:0 -24px 60px rgba(18,28,21,.18)}.grabber{width:42px;height:4px;margin:3px auto 12px;border-radius:99px;background:#d5d9d5}.sheet header{display:flex;align-items:center;justify-content:space-between}.sheet header span,.group>span{font-size:11px;font-weight:800;letter-spacing:.11em;text-transform:uppercase;color:#708075}.sheet h2{margin:2px 0 0;font-size:23px;text-transform:capitalize}.icon-button{display:grid;width:42px;height:42px;place-items:center;border:0;border-radius:50%;background:#f1f3ef}.form-scroll{display:grid;gap:15px;max-height:calc(88svh - 155px);padding:20px 2px;overflow:auto}label{display:grid;gap:7px;color:#526158;font-size:12px;font-weight:700}input,textarea,select{width:100%;padding:13px 14px;border:1px solid #dce1dc;border-radius:14px;background:#f9faf8;color:#17211b;font:inherit;font-size:15px;outline:none}input:focus,textarea:focus,select:focus{border-color:#538660;box-shadow:0 0 0 3px rgba(83,134,96,.12)}textarea{resize:vertical}.color-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}.color-row label{padding:12px;border:1px solid #e1e4e0;border-radius:15px}.color-row input{height:38px;padding:2px}.segmented{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:14px;background:#f0f2ef}.segmented.triple{grid-template-columns:repeat(3,1fr);margin-top:7px}.segmented button{min-height:40px;border:0;border-radius:11px;background:transparent;font-size:12px;font-weight:700}.segmented .active{background:#fff;box-shadow:0 3px 12px rgba(20,30,22,.08)}.toggle{display:flex;align-items:center;justify-content:space-between;padding:13px;border:1px solid #e1e4e0;border-radius:14px}.toggle input{width:20px;height:20px}.visibility{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:8px}.visibility label{display:flex;align-items:center;gap:5px;padding:9px;border:1px solid #e1e4e0;border-radius:11px;text-transform:capitalize}.visibility input{width:16px;height:16px;padding:0}footer{display:grid;grid-template-columns:auto auto 1fr;gap:8px}footer button{min-height:50px;border:0;border-radius:15px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px}.delete{padding:0 13px;background:#fff0ed;color:#a33b2e}.reuse{padding:0 12px;background:#eaf0e8;color:#315c42}.save{background:#17211b;color:#fff}@media(min-width:900px){.sheet{top:0;right:0;left:auto;width:390px;max-height:none;border-radius:0;padding-top:22px}.form-scroll{max-height:calc(100svh - 150px)}}
+</style>

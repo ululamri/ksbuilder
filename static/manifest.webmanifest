@@ -1,0 +1,17 @@
+{
+  "name": "Spark Builder",
+  "short_name": "Builder",
+  "description": "Editor website mobile-first untuk Karyra Spark",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#eceee9",
+  "theme_color": "#17211b",
+  "icons": [
+    {
+      "src": "/spark-builder-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

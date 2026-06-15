@@ -1,0 +1,18 @@
+services:
+  spark-builder:
+    build: .
+    ports:
+      - "5175:3000"
+    environment:
+      NODE_ENV: production
+      ORIGIN: http://localhost:5175
+      SPARK_BUILDER_API_MODE: local
+      SPARK_BUILDER_ALLOWED_ORIGIN: http://localhost:5175
+      SPARK_BUILDER_ADMIN_EMAIL: admin@spark.local
+      SPARK_BUILDER_ADMIN_PASSWORD: ${SPARK_BUILDER_ADMIN_PASSWORD:?set SPARK_BUILDER_ADMIN_PASSWORD}
+    volumes:
+      - spark-builder-data:/data
+    restart: unless-stopped
+
+volumes:
+  spark-builder-data:
