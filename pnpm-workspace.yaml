@@ -1,0 +1,5 @@
+packages:
+  - .
+
+overrides:
+  cookie: ^1.1.1
