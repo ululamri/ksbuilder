@@ -24,7 +24,17 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
   if (!parsed || typeof parsed !== 'object' || parsed.schemaVersion !== 1 || !Array.isArray(parsed.pages) || parsed.pages.length === 0 || parsed.pages.length > 100) return null;
   if (parsed.pages.some((page) => !page || typeof page !== 'object' || !Array.isArray(page.blocks) || page.blocks.length > 500)) return null;
   if (parsed.pages.some((page) => page.blocks.some((block) => !block || !BLOCK_TYPES.has(block.type) || !block.data || typeof block.data !== 'object' || Array.isArray(block.data) || !block.style || typeof block.style !== 'object'))) return null;
-  parsed.theme ??= { primary: '#17211b', accent: '#d9ff62', surface: '#ffffff', text: '#17211b', font: 'modern', buttonRadius: 'pill' };
+  parsed.theme ??= {
+    primary: '#17211b',
+    accent: '#d9ff62',
+    surface: '#ffffff',
+    text: '#17211b',
+    font: 'modern',
+    buttonRadius: 'pill',
+    contentWidth: 'standard',
+    sectionGap: 'normal',
+    surfaceStyle: 'flat'
+  };
   parsed.site ??= { headerTitle: parsed.name, footerText: 'Belajar aman. Tumbuh bersama.', navigation: [], headerCtaLabel: 'Mulai', headerCtaHref: '/core', footerLinks: [], formAction: '' };
   parsed.metadata ??= {
     kind: 'site',
@@ -46,6 +56,9 @@ export function normalizeProject(parsed: BuilderProject): BuilderProject | null 
   parsed.theme.text = safeColor(parsed.theme.text, '#17211b');
   if (!['modern', 'friendly', 'editorial'].includes(parsed.theme.font)) parsed.theme.font = 'modern';
   if (!['soft', 'pill', 'square'].includes(parsed.theme.buttonRadius)) parsed.theme.buttonRadius = 'pill';
+  if (!['compact', 'standard', 'wide'].includes(parsed.theme.contentWidth ?? '')) parsed.theme.contentWidth = 'standard';
+  if (!['tight', 'normal', 'relaxed'].includes(parsed.theme.sectionGap ?? '')) parsed.theme.sectionGap = 'normal';
+  if (!['flat', 'tinted', 'contrast'].includes(parsed.theme.surfaceStyle ?? '')) parsed.theme.surfaceStyle = 'flat';
   parsed.site.headerTitle = safeString(parsed.site.headerTitle, parsed.name, 80) || parsed.name;
   parsed.site.footerText = safeString(parsed.site.footerText, 'Belajar aman. Tumbuh bersama.', 140);
   parsed.site.headerCtaLabel = safeString(parsed.site.headerCtaLabel, 'Mulai', 40);

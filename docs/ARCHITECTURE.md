@@ -64,6 +64,7 @@ The critical boundary is the render contract, not the UI framework. That lets th
 ## Builder Domain Features
 
 - Global component library with symbol references
+- Theme presets and design tokens for content width, section rhythm, button radius, typography, and surface style
 - Dedicated grid layout block for mobile/tablet/desktop columns
 - Header CTA, navigation editor, and footer link builder
 - Local file manager with folders, rename/move/delete, and protected deletion for referenced assets

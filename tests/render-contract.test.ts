@@ -22,7 +22,7 @@ function makeProject(): BuilderProject {
       schemaVersion: 1,
       id: 'project-1',
       name: 'Spark',
-      theme: { primary: '#17211b', accent: '#d9ff62', surface: '#f9faf7', text: '#17211b', font: 'modern', buttonRadius: 'pill' },
+      theme: { primary: '#17211b', accent: '#d9ff62', surface: '#f9faf7', text: '#17211b', font: 'modern', buttonRadius: 'pill', contentWidth: 'wide', sectionGap: 'relaxed', surfaceStyle: 'tinted' },
       site: { headerTitle: 'Spark Academy', footerText: 'Footer', navigation: [], formAction: 'https://forms.example.com/submit' },
       metadata: {
         kind: 'learn',
@@ -61,6 +61,9 @@ describe('render contract', () => {
     const contract = createSiteRenderContract(makeProject());
     expect(contract.version).toBe(RENDER_CONTRACT_VERSION);
     expect(contract.project.headerTitle).toBe('Spark Academy');
+    expect(contract.project.theme.contentWidth).toBe('wide');
+    expect(contract.project.theme.sectionGap).toBe('relaxed');
+    expect(contract.project.theme.surfaceStyle).toBe('tinted');
     expect(contract.project.metadata.kind).toBe('learn');
     expect(contract.project.metadata.visibilityTarget).toBe('both');
     expect(contract.pages).toHaveLength(1);
@@ -86,6 +89,8 @@ describe('render contract', () => {
     const contract = createSiteRenderContract(makeProject());
     const css = exportedSiteCss(contract.project.theme);
     expect(css).toContain('--theme-primary:#17211b');
+    expect(css).toContain('--content-width:1280px');
+    expect(css).toContain('--section-gap:24px');
     expect(css).toContain('.content-block');
   });
 });

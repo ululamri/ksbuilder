@@ -9,6 +9,7 @@
   import { SparkApiPublishAdapter } from '$lib/builder/publish-adapter';
   import { duplicatePage, starterProject } from '$lib/builder/project';
   import { templates } from '$lib/builder/templates';
+  import { themePresets } from '$lib/builder/theme-presets';
   import { safeSlug } from '$lib/builder/security';
   import type { BlockType, BuilderBlock, BuilderExportTarget, BuilderProject, DeviceMode } from '$lib/builder/types';
   import type { BuilderAiSettingsStatus, CmsSession } from '$lib/contracts/cms';
@@ -160,6 +161,14 @@
     if (!project || !project.theme) return;
     snapshot();
     commit({ ...project, theme: { ...project.theme, [key]: value } as NonNullable<BuilderProject['theme']> });
+  }
+
+  function applyThemePreset(presetId: string) {
+    if (!project) return;
+    const preset = themePresets.find((item) => item.id === presetId);
+    if (!preset) return;
+    snapshot();
+    commit({ ...project, theme: structuredClone(preset.theme) }, 'Preset tema diterapkan');
   }
 
   function updateSeo(key: string, value: string | boolean) {
@@ -833,7 +842,7 @@
 {:else if session?.backendMode !== 'draft' && !session?.authenticated}
   <LoginScreen onlogin={login} />
 {:else}
-  <div class:preview-mode={preview} class="builder-app" style={`--theme-primary:${project.theme?.primary};--theme-accent:${project.theme?.accent};--theme-surface:${project.theme?.surface};--theme-text:${project.theme?.text};--button-radius:${project.theme?.buttonRadius === 'square' ? '4px' : project.theme?.buttonRadius === 'soft' ? '14px' : '999px'}`} data-font={project.theme?.font}>
+  <div class:preview-mode={preview} class="builder-app" style={`--theme-primary:${project.theme?.primary};--theme-accent:${project.theme?.accent};--theme-surface:${project.theme?.surface};--theme-text:${project.theme?.text};--button-radius:${project.theme?.buttonRadius === 'square' ? '4px' : project.theme?.buttonRadius === 'soft' ? '14px' : '999px'};--content-width:${project.theme?.contentWidth === 'compact' ? '920px' : project.theme?.contentWidth === 'wide' ? '1280px' : '1100px'};--section-gap:${project.theme?.sectionGap === 'tight' ? '10px' : project.theme?.sectionGap === 'relaxed' ? '18px' : '12px'}`} data-font={project.theme?.font} data-surface={project.theme?.surfaceStyle ?? 'flat'}>
     <header class="topbar">
       <div class="topbar-left"><button class="round-button" aria-label="Daftar proyek" onclick={openProjects}><Icon name="back" /></button><div class="document-name"><input value={page.title} onchange={(event) => renamePage(event.currentTarget.value)} aria-label="Nama halaman" /><span><i class:published={page.status === 'published'}></i>{page.status === 'published' ? 'Terbit' : 'Draf tersimpan'}</span></div></div>
       <div class="topbar-actions"><div class="device-switch"><button class:active={device === 'mobile'} onclick={() => device = 'mobile'}>M</button><button class:active={device === 'tablet'} onclick={() => device = 'tablet'}>T</button><button class:active={device === 'desktop'} onclick={() => device = 'desktop'}>D</button></div><button class="icon-action" onclick={undo} disabled={history.length === 0} aria-label="Urungkan"><Icon name="undo" /></button><button class="icon-action" onclick={redo} disabled={future.length === 0} aria-label="Ulangi"><Icon name="redo" /></button><button class="preview-button" class:active={preview} onclick={() => preview = !preview}><Icon name="eye" size={18} /><span>{preview ? 'Edit' : 'Preview'}</span></button><button class="publish-button" onclick={publish} disabled={publishing}>{publishing ? 'Memproses...' : 'Terbitkan'}</button></div>
@@ -896,7 +905,24 @@
           {:else if activePanel === 'media'}
             <MediaLibrary assets={mediaAssets} {uploading} onupload={uploadMediaBatch} onselect={insertMedia} onrename={renameMedia} onmove={moveMedia} ondelete={removeMedia} onfocus={updateMediaFocus} />
           {:else if activePanel === 'theme' && project.theme}
-            <p>Token global menjaga warna dan tipografi tetap konsisten.</p><div class="settings-form"><div class="theme-colors"><label>Utama<input type="color" value={project.theme.primary} onchange={(event) => updateTheme('primary', event.currentTarget.value)} /></label><label>Aksen<input type="color" value={project.theme.accent} onchange={(event) => updateTheme('accent', event.currentTarget.value)} /></label><label>Permukaan<input type="color" value={project.theme.surface} onchange={(event) => updateTheme('surface', event.currentTarget.value)} /></label><label>Teks<input type="color" value={project.theme.text} onchange={(event) => updateTheme('text', event.currentTarget.value)} /></label></div><label>Gaya font<select value={project.theme.font} onchange={(event) => updateTheme('font', event.currentTarget.value)}><option value="modern">Modern</option><option value="friendly">Friendly</option><option value="editorial">Editorial</option></select></label><label>Sudut tombol<select value={project.theme.buttonRadius} onchange={(event) => updateTheme('buttonRadius', event.currentTarget.value)}><option value="pill">Pill</option><option value="soft">Soft</option><option value="square">Square</option></select></label></div>
+            <p>Token global menjaga warna, ritme, dan lebar konten tetap konsisten di preview, publish, static export, dan Next.js export.</p>
+            <div class="settings-form">
+              <div class="theme-preset-list">
+                {#each themePresets as preset}
+                  <button onclick={() => applyThemePreset(preset.id)}>
+                    <span style={`--swatch-primary:${preset.theme.primary};--swatch-accent:${preset.theme.accent};--swatch-surface:${preset.theme.surface}`}></span>
+                    <strong>{preset.name}</strong>
+                    <small>{preset.description}</small>
+                  </button>
+                {/each}
+              </div>
+              <div class="theme-colors"><label>Utama<input type="color" value={project.theme.primary} onchange={(event) => updateTheme('primary', event.currentTarget.value)} /></label><label>Aksen<input type="color" value={project.theme.accent} onchange={(event) => updateTheme('accent', event.currentTarget.value)} /></label><label>Permukaan<input type="color" value={project.theme.surface} onchange={(event) => updateTheme('surface', event.currentTarget.value)} /></label><label>Teks<input type="color" value={project.theme.text} onchange={(event) => updateTheme('text', event.currentTarget.value)} /></label></div>
+              <label>Gaya font<select value={project.theme.font} onchange={(event) => updateTheme('font', event.currentTarget.value)}><option value="modern">Modern</option><option value="friendly">Friendly</option><option value="editorial">Editorial</option></select></label>
+              <label>Sudut tombol<select value={project.theme.buttonRadius} onchange={(event) => updateTheme('buttonRadius', event.currentTarget.value)}><option value="pill">Pill</option><option value="soft">Soft</option><option value="square">Square</option></select></label>
+              <label>Lebar konten<select value={project.theme.contentWidth ?? 'standard'} onchange={(event) => updateTheme('contentWidth', event.currentTarget.value)}><option value="compact">Compact</option><option value="standard">Standard</option><option value="wide">Wide</option></select></label>
+              <label>Jarak section<select value={project.theme.sectionGap ?? 'normal'} onchange={(event) => updateTheme('sectionGap', event.currentTarget.value)}><option value="tight">Tight</option><option value="normal">Normal</option><option value="relaxed">Relaxed</option></select></label>
+              <label>Surface style<select value={project.theme.surfaceStyle ?? 'flat'} onchange={(event) => updateTheme('surfaceStyle', event.currentTarget.value)}><option value="flat">Flat</option><option value="tinted">Tinted</option><option value="contrast">Contrast</option></select></label>
+            </div>
           {:else if activePanel === 'revisions'}
             <p>Setiap penyimpanan backend menghasilkan snapshot immutable.</p><div class="revision-list">{#each revisions as item}<article><div><strong>Revisi {item.revision}</strong><small>{new Date(item.createdAt).toLocaleString('id-ID')} · {item.createdBy}</small></div><button onclick={() => restoreRevision(item.revision)} disabled={item.revision === backendRevision}>Pulihkan</button></article>{/each}{#if revisions.length === 0}<small>Belum ada revisi tersimpan.</small>{/if}</div>
           {:else if activePanel === 'submissions'}

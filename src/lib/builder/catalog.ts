@@ -41,7 +41,15 @@ export const blockCatalog: BlockDefinition[] = [
     label: 'Gambar',
     description: 'Gambar responsif dengan teks alternatif.',
     icon: 'IMG',
-    defaults: { src: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1200&q=80', alt: 'Ilustrasi teknologi blockchain', caption: 'Gunakan gambar yang relevan dengan materi.' }
+    defaults: {
+      src: 'https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1200&q=80',
+      srcset: '',
+      sizes: '100vw',
+      focalX: '50',
+      focalY: '50',
+      alt: 'Ilustrasi teknologi blockchain',
+      caption: 'Gunakan gambar yang relevan dengan materi.'
+    }
   },
   {
     type: 'video',

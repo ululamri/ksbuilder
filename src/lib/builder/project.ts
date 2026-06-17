@@ -6,7 +6,17 @@ export function starterProject(): BuilderProject {
     schemaVersion: 1,
     id: crypto.randomUUID(),
     name: 'Karyra Spark',
-    theme: { primary: '#17211b', accent: '#d9ff62', surface: '#ffffff', text: '#17211b', font: 'modern', buttonRadius: 'pill' },
+    theme: {
+      primary: '#17211b',
+      accent: '#d9ff62',
+      surface: '#ffffff',
+      text: '#17211b',
+      font: 'modern',
+      buttonRadius: 'pill',
+      contentWidth: 'standard',
+      sectionGap: 'normal',
+      surfaceStyle: 'flat'
+    },
     site: {
       headerTitle: 'Karyra Spark',
       footerText: 'Belajar aman. Tumbuh bersama.',

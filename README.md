@@ -13,7 +13,7 @@ It is designed to work in two modes:
 - Blocks for hero, text, structured rich text, feature, CTA, image, gallery, statistics, quote, forms, divider, spacing, global symbols, and responsive grids
 - Insert, edit, duplicate, delete, drag reorder, touch reorder, undo, and redo
 - Pages, templates, layer navigator, project dashboard, and global component library
-- Global theme, header/footer builder, automatic navigation, SEO, responsive visibility, and device previews
+- Global theme presets, design tokens, header/footer builder, automatic navigation, SEO, responsive visibility, and device previews
 - Local media library and file manager for JPEG, PNG, WebP, AVIF, GIF, MP4, WebM, and validated Lottie JSON
 - Bulk media upload, responsive image variants, focal-point control, and folder-based asset management
 - Native video, privacy-enhanced YouTube/Vimeo embeds, Lottie, and reduced-motion-aware entrance animations
@@ -102,6 +102,7 @@ The render contract also carries:
 - header/footer navigation structure
 - responsive grid block data
 - responsive image data (`src`, `srcSet`, `sizes`, focal point)
+- design tokens for content width, section rhythm, and surface style
 
 ## Integration Boundary
 

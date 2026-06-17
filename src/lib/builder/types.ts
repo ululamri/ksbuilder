@@ -93,6 +93,9 @@ export type BuilderProject = {
     text: string;
     font: 'modern' | 'friendly' | 'editorial';
     buttonRadius: 'soft' | 'pill' | 'square';
+    contentWidth?: 'compact' | 'standard' | 'wide';
+    sectionGap?: 'tight' | 'normal' | 'relaxed';
+    surfaceStyle?: 'flat' | 'tinted' | 'contrast';
   };
   site?: {
     headerTitle: string;

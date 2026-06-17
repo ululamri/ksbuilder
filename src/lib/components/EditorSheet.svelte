@@ -9,9 +9,11 @@
     draft = structuredClone(block);
   });
 
-  const fieldLabels: Record<string, string> = { eyebrow: 'Label kecil', title: 'Judul', body: 'Deskripsi', content: 'Konten terstruktur', fields: 'Field (Label|name|type|required)', success: 'Pesan sukses', button: 'Teks tombol', href: 'Tautan', kicker: 'Nomor/label', src: 'URL media atau YouTube/Vimeo', poster: 'Poster video HTTPS', autoplay: 'Putar otomatis', loop: 'Ulangi', muted: 'Tanpa suara', controls: 'Tampilkan kontrol', playsinline: 'Putar dalam halaman', speed: 'Kecepatan (0.25-3)', alt: 'Teks alternatif', caption: 'Keterangan', size: 'Tinggi (px)', image1: 'Gambar pertama', image2: 'Gambar kedua', image3: 'Gambar ketiga', quote: 'Kutipan', author: 'Nama', role: 'Peran', width: 'Lebar (%)', value1: 'Angka 1', value2: 'Angka 2', value3: 'Angka 3', label1: 'Label 1', label2: 'Label 2', label3: 'Label 3', componentId: 'ID komponen global', columnsMobile: 'Kolom mobile', columnsTablet: 'Kolom tablet', columnsDesktop: 'Kolom desktop', items: 'Item grid (Title|Body|Href|Button)' };
+  const fieldLabels: Record<string, string> = { eyebrow: 'Label kecil', title: 'Judul', body: 'Deskripsi', content: 'Konten terstruktur', fields: 'Field (Label|name|type|required)', success: 'Pesan sukses', button: 'Teks tombol', href: 'Tautan', kicker: 'Nomor/label', src: 'URL media atau YouTube/Vimeo', srcset: 'Srcset responsif', sizes: 'Sizes responsif', focalX: 'Focal X (%)', focalY: 'Focal Y (%)', poster: 'Poster video HTTPS', autoplay: 'Putar otomatis', loop: 'Ulangi', muted: 'Tanpa suara', controls: 'Tampilkan kontrol', playsinline: 'Putar dalam halaman', speed: 'Kecepatan (0.25-3)', alt: 'Teks alternatif', caption: 'Keterangan', size: 'Tinggi (px)', image1: 'Gambar pertama', image2: 'Gambar kedua', image3: 'Gambar ketiga', quote: 'Kutipan', author: 'Nama', role: 'Peran', width: 'Lebar (%)', value1: 'Angka 1', value2: 'Angka 2', value3: 'Angka 3', label1: 'Label 1', label2: 'Label 2', label3: 'Label 3', componentId: 'ID komponen global', columnsMobile: 'Kolom mobile', columnsTablet: 'Kolom tablet', columnsDesktop: 'Kolom desktop', items: 'Item grid (Title|Body|Href|Button)' };
   const devices: DeviceMode[] = ['mobile', 'tablet', 'desktop'];
   const booleanFields = new Set(['autoplay', 'loop', 'muted', 'controls', 'playsinline']);
+  const numericFields = new Set(['size', 'width', 'speed', 'columnsMobile', 'columnsTablet', 'columnsDesktop', 'focalX', 'focalY']);
+  const longTextFields = new Set(['body', 'quote', 'content', 'fields', 'items', 'srcset']);
 </script>
 
 <button class="scrim" aria-label="Tutup editor" onclick={onclose}></button>
@@ -21,7 +23,7 @@
   <div class="form-scroll">
     {#each Object.keys(draft.data) as key}
       <label><span>{fieldLabels[key] ?? key}</span>
-        {#if booleanFields.has(key)}<select bind:value={draft.data[key]}><option value="true">Ya</option><option value="false">Tidak</option></select>{:else if key === 'body' || key === 'quote' || key === 'content' || key === 'fields'}<textarea bind:value={draft.data[key]} rows={key === 'content' || key === 'fields' ? 7 : 4}></textarea>{:else}<input bind:value={draft.data[key]} inputmode={key === 'size' || key === 'width' || key === 'speed' ? 'decimal' : 'text'} />{/if}
+        {#if booleanFields.has(key)}<select bind:value={draft.data[key]}><option value="true">Ya</option><option value="false">Tidak</option></select>{:else if key === 'focalX' || key === 'focalY'}<input type="range" min="0" max="100" step="1" bind:value={draft.data[key]} />{:else if longTextFields.has(key)}<textarea bind:value={draft.data[key]} rows={key === 'content' || key === 'fields' || key === 'items' ? 7 : 4}></textarea>{:else}<input bind:value={draft.data[key]} inputmode={numericFields.has(key) ? 'decimal' : 'text'} />{/if}
       </label>
     {/each}
     {#if block.type !== 'spacer' && block.type !== 'symbol'}

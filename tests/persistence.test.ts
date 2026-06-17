@@ -13,6 +13,9 @@ describe('project normalization', () => {
   it('migrates old drafts with defaults', () => {
     const result = normalizeProject(structuredClone(valid));
     expect(result?.theme?.primary).toBe('#17211b');
+    expect(result?.theme?.contentWidth).toBe('standard');
+    expect(result?.theme?.sectionGap).toBe('normal');
+    expect(result?.theme?.surfaceStyle).toBe('flat');
     expect(result?.pages[0].seo?.title).toBe('Page');
     expect(result?.pages[0].blocks[0].style.padding).toBe('normal');
     expect(result?.site?.homePageId).toBe('page');
