@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<richtextdoc version="1.0">
+  <title>ksbuilder Implementation Summary</title>
+  <meta>
+    <createdAt>2026-06-15T00:00:00Z</createdAt>
+    <scope>Local summary only. Do not push.</scope>
+  </meta>
+  <body>
+    <section title="Phase 1 - Foundation">
+      <p>Builder dipisahkan sebagai repo mandiri berbasis SvelteKit dengan mode local, draft, dan spark-api.</p>
+      <p>Fondasi keamanan ditambahkan: session aman, CSRF, origin validation, audit log, revision immutable, dan BFF untuk boundary ke backend.</p>
+      <p>Editor mobile-first dan PWA dibangun agar dapat dipakai dari Android.</p>
+    </section>
+    <section title="Phase 2 - Core Builder">
+      <p>Block editor mobile-first mencakup hero, text, rich text, feature, CTA, image, gallery, stats, quote, form, divider, spacer, video, lottie, dan animasi.</p>
+      <p>Sudah ada halaman, template, layer navigator, preview device, tema global, SEO, autosave, revision history, publish, dan export statis.</p>
+      <p>Builder juga mendukung target export Next.js melalui render contract yang netral framework.</p>
+    </section>
+    <section title="Phase 3 - Advanced Builder">
+      <p>Global component library ditambahkan melalui symbol blocks agar section dapat dipakai ulang lintas halaman.</p>
+      <p>Grid layout builder, dedicated navbar builder, header CTA, dan footer links builder ditambahkan untuk memperkaya layout.</p>
+      <p>File manager dikembangkan dengan folder, rename, move, delete protection, bulk upload, responsive image variants, dan focal point.</p>
+    </section>
+    <section title="Media and Runtime">
+      <p>Gambar raster dioptimalkan di sisi klien dan menghasilkan varian responsif. Metadata srcset, sizes, dan focal point ikut ke preview, public runtime, static export, dan Next.js export.</p>
+      <p>GIF, video MP4/WebM, YouTube/Vimeo embed, serta Lottie sudah didukung.</p>
+    </section>
+    <section title="Architecture Boundary">
+      <p>Konten Core, Learn, dan Lab tidak dimasukkan ke visual builder. Builder fokus pada website presentation layer, sedangkan CMS lesson/lab tetap diarahkan ke dashboard admin terpisah.</p>
+      <p>Metadata untuk core, learn, lab, dan hub sudah tersedia agar publish pipeline dan integrasi hub tetap punya contract yang stabil.</p>
+    </section>
+    <section title="Verification">
+      <p>Hasil verifikasi terakhir: pnpm test lulus, pnpm check tanpa error/warning, dan pnpm build berhasil.</p>
+    </section>
+  </body>
+</richtextdoc>
