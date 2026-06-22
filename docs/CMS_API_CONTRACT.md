@@ -1,6 +1,8 @@
 # Spark CMS API Contract
 
-Contract version: `2026-06-13`
+Contract version: `2026-06-22`
+
+Compatibility note: the Builder BFF accepts the current contract version and normalizes the previous `2026-06-13` payload shape where backend fields still arrive in snake_case.
 
 The browser calls only Spark Builder routes under `/api/builder`. Spark Builder forwards authenticated requests to `spark-api` routes under `/v1/cms`.
 

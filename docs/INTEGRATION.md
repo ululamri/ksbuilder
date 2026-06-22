@@ -71,6 +71,8 @@ SPARK_API_URL=https://api.example.com
 SPARK_API_BOOTSTRAP_TOKEN=replace-me
 ```
 
+The Builder advertises CMS contract version `2026-06-22` and keeps a compatibility path for the prior `2026-06-13` response shape. The BFF also normalizes common snake_case backend payloads before they reach the editor UI.
+
 ## High-level Request Flow
 
 ```txt

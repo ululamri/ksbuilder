@@ -118,6 +118,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/INTEGRATION.md](docs/INT
 
 In `spark-api` mode, the Builder forwards only cookies explicitly listed in `SPARK_API_FORWARD_COOKIES`. This avoids leaking builder-local cookies upstream.
 
+The current CMS contract version is `2026-06-22`. The Builder BFF still tolerates the previous `2026-06-13` payload shape and normalizes snake_case backend fields before they reach the editor.
+
 For Android LAN testing, set `SPARK_BUILDER_ALLOWED_ORIGIN` to the exact builder URL, for example `http://192.168.1.20:5175`.
 
 ## License

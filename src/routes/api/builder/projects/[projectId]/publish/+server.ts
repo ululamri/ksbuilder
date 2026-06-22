@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types';
 import type { PublishProjectRequest, PublishProjectResult } from '$lib/contracts/cms';
+import { normalizePublishProjectResult } from '$lib/contracts/cms';
 import { builderConfig } from '$lib/server/config';
 import { cmsRequest, CmsClientError } from '$lib/server/cms-client';
 import { assertMutationRequest } from '$lib/server/request-security';
@@ -20,11 +21,12 @@ export const POST: RequestHandler = async (event) => {
     if (builderConfig().mode === 'draft') {
       return cmsOk<PublishProjectResult>({ revision: payload.expectedRevision, publishedAt: new Date().toISOString(), publicUrl: null }, event.locals.requestId);
     }
-    const data = await cmsRequest<PublishProjectResult>(event, `/v1/cms/projects/${encodeURIComponent(event.params.projectId)}/publish`, {
+    const data = normalizePublishProjectResult(await cmsRequest(event, `/v1/cms/projects/${encodeURIComponent(event.params.projectId)}/publish`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'if-match': String(payload.expectedRevision) },
       body: JSON.stringify({})
-    });
+    }));
+    if (!data) throw new CmsClientError(502, 'backend_unavailable', 'Invalid publish payload.');
     return cmsOk(data, event.locals.requestId);
   } catch (error) {
     return cmsFailure(error, event.locals.requestId);

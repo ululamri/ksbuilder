@@ -1,0 +1,19 @@
+# Example only. Keep production TLS, headers, and upstream names aligned with your deployment.
+
+admin.example.com {
+  reverse_proxy /api/builder/* ksbuilder:3000
+  reverse_proxy ksbuilder:3000
+}
+
+api.example.com {
+  reverse_proxy spark-api:8787
+}
+
+spark.example.com {
+  reverse_proxy spark:3000
+}
+
+hub.example.com {
+  reverse_proxy hub:3000
+}
+

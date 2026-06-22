@@ -1,5 +1,5 @@
 import type { RequestEvent } from '@sveltejs/kit';
-import type { CmsErrorCode } from '$lib/contracts/cms';
+import { CMS_COMPATIBLE_CONTRACT_VERSIONS, CMS_CONTRACT_VERSION, type CmsErrorCode } from '$lib/contracts/cms';
 import { builderConfig } from './config';
 
 export class CmsClientError extends Error {
@@ -29,7 +29,8 @@ export async function cmsRequest<T>(event: RequestEvent, path: string, init: Req
   const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
   const headers = new Headers(init.headers);
   headers.set('accept', 'application/json');
-  headers.set('x-cms-contract-version', '2026-06-13');
+  headers.set('x-cms-contract-version', CMS_CONTRACT_VERSION);
+  headers.set('x-cms-contract-compatibility', CMS_COMPATIBLE_CONTRACT_VERSIONS.join(','));
   headers.set('x-request-id', event.locals.requestId);
   const forwardedCookies = config.forwardedApiCookies
     .map((name) => {
